@@ -220,7 +220,7 @@ void WdmPlayerShip::Update(float dltTime)
             wdmObjects->wm->AttributesPointer->SetAttributeUseDword("encounter_type", 3);
             break;
         default:
-            wdmObjects->wm->AttributesPointer->SetAttributeUseDword("encounter_type", -1);
+            wdmObjects->wm->AttributesPointer->SetAttributeUseDword("encounter_type", 0);
         }
     }
     else
@@ -232,7 +232,7 @@ void WdmPlayerShip::Update(float dltTime)
         }
         else
         {
-            wdmObjects->wm->AttributesPointer->SetAttributeUseDword("encounter_type", -1);
+            wdmObjects->wm->AttributesPointer->SetAttributeUseDword("encounter_type", 0);
         }
     }
     if (nOldIslandVal != wdmObjects->wm->AttributesPointer->GetAttributeAsDword("encounter_island", 0) ||
