@@ -76,7 +76,7 @@ bool SoundService::Init()
 {
     initialized = false;
 
-    rs = static_cast<VDX9RENDER *>(core.CreateService("DX9RENDER"));
+    rs = static_cast<VDX9RENDER *>(core.GetService("DX9RENDER"));
 
     CHECKFMODERR(FMOD::System_Create(&system));
     unsigned version;
@@ -1167,8 +1167,10 @@ void SoundService::DebugDraw()
 
     auto vListener = CVECTOR(lpos.x, lpos.y, lpos.z);
 
-    float fTotal;
-    system->getCPUUsage(nullptr, nullptr, nullptr, nullptr, &fTotal);
+    FMOD_CPU_USAGE usage;
+    system->getCPUUsage(&usage);
+    float fTotal = usage.dsp + usage.stream + usage.geometry + usage.update + usage.convolution1 + usage.convolution1;
+
     int CurrentAlloc, PeakAlloc;
     FMOD::Memory_GetStats(&CurrentAlloc, &PeakAlloc);
 
