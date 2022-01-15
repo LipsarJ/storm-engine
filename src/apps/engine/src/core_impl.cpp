@@ -514,7 +514,7 @@ void CoreImpl::Trace(const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    _vsnprintf_s(buffer_4k, sizeof(buffer_4k) - 4, format, args);
+    vsnprintf(buffer_4k, sizeof(buffer_4k) - 4, format, args);
     va_end(args);
     spdlog::info(buffer_4k);
 }
@@ -867,7 +867,7 @@ void CoreImpl::DumpEntitiesInfo()
       }
     }
 
-    Sleep(200);*/
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));*/
 }
 
 void *CoreImpl::GetSaveData(const char *file_name, int32_t &data_size)

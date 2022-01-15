@@ -1,6 +1,7 @@
 #include "compiler.h"
 
 #include <cstdio>
+#include <chrono>
 
 #include <zlib.h>
 
@@ -24,6 +25,10 @@ extern INTFUNCDESC IntFuncTable[];
 extern S_DEBUG * CDebug;
 extern uint32_t dwNumberScriptCommandsExecuted;
 
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::system_clock;
+
 COMPILER::COMPILER()
     : bBreakOnError(false), pRunCodeBase(nullptr), CompilerStage(CS_SYSTEM), pEventMessage(nullptr), SegmentsNum(0), InstructionPointer(0),
       pBuffer(nullptr), ProgramDirectory(nullptr), bCompleted(false), bEntityUpdate(true),
@@ -46,7 +51,7 @@ COMPILER::COMPILER()
 
     SStack.SetVCompiler(this);
     VarTab.SetVCompiler(this);
-    srand(GetTickCount());
+    srand(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
 
     DebugTraceFileName[0] = 0;
 
@@ -211,7 +216,7 @@ void COMPILER::Trace(const char *data_PTR, ...)
     char LogBuffer[4096];
     va_list args;
     va_start(args, data_PTR);
-    _vsnprintf_s(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
+    vsnprintf(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
     va_end(args);
     logTrace_->trace(LogBuffer);
 }
@@ -227,7 +232,7 @@ void COMPILER::DTrace(const char *data_PTR, ...)
     char LogBuffer[4096];
     va_list args;
     va_start(args, data_PTR);
-    _vsnprintf_s(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
+    vsnprintf(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
     va_end(args);
     logTrace_->trace(LogBuffer);
 }
@@ -300,7 +305,7 @@ void COMPILER::SetError(const char *data_PTR, ...)
     char ErrorBuffer[MAX_PATH + BUFSIZ];
     va_list args;
     va_start(args, data_PTR);
-    _vsnprintf_s(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
+    vsnprintf(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
     uint32_t bytes;
     FindErrorSource();
 
@@ -337,7 +342,7 @@ void COMPILER::SetWarning(const char *data_PTR, ...)
         return;
     va_list args;
     va_start(args, data_PTR);
-    _vsnprintf_s(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
+    vsnprintf(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
     uint32_t bytes;
     FindErrorSource();
 
@@ -4173,7 +4178,7 @@ bool COMPILER::BC_Execute(uint32_t function_code, DATA *&pVReturnResult, const c
                     CDebug->SetTraceMode(TMODE_WAIT);
                     while (CDebug->GetTraceMode() == TMODE_WAIT)
                     {
-                        Sleep(40);
+                        std::this_thread::sleep_for(std::chrono::milliseconds(40));
                     }
                     if (CDebug->GetTraceMode() == TMODE_MAKESTEP_OVER)
                         bDebugWaitForThisFunc = true;
@@ -4195,7 +4200,7 @@ bool COMPILER::BC_Execute(uint32_t function_code, DATA *&pVReturnResult, const c
 
                         while (CDebug->GetTraceMode() == TMODE_WAIT)
                         {
-                            Sleep(40);
+                            std::this_thread::sleep_for(std::chrono::milliseconds(40));
                         } // wait for debug thread decision
                         if (CDebug->GetTraceMode() == TMODE_MAKESTEP_OVER)
                             bDebugWaitForThisFunc = true;
@@ -5796,7 +5801,7 @@ void COMPILER::SaveDataDebug(char *data_PTR, ...)
     }
     va_list args;
     va_start(args, data_PTR);
-    _vsnprintf_s(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
+    vsnprintf(LogBuffer, sizeof(LogBuffer) - 4, data_PTR, args);
     strcat_s(LogBuffer, "\x0d\x0a");
     va_end(args);
 }

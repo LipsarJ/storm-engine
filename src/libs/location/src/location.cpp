@@ -10,8 +10,9 @@
 
 #include "location.h"
 
-#include "core.h"
+#include <chrono>
 
+#include "core.h"
 #include "character.h"
 #include "grass.h"
 #include "lights.h"
@@ -33,6 +34,10 @@ float fCausticSpeed = 0.0f;
 
 Location::Location()
 {
+    using std::chrono::duration_cast;
+    using std::chrono::milliseconds;
+    using std::chrono::system_clock;
+
     numLocators = 0;
     maxLocators = 16;
     locators.resize(maxLocators);
@@ -41,7 +46,7 @@ Location::Location()
     sphereVertex = nullptr;
     sphereNumTrgs = 0;
     lastLoadStaticModel = -1;
-    srand(GetTickCount() | 1);
+    srand(duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count() | 1);
     isPause = false;
     lights = nullptr;
     curMessage = 0;
@@ -1021,7 +1026,7 @@ void Location::Print(const CVECTOR &pos3D, float rad, int32_t line, float alpha,
     static char buf[256];
     scale *= 2.0f;
     // print to the buffer
-    int32_t len = _vsnprintf_s(buf, sizeof(buf) - 1, format, (char *)(&format + 1));
+    int32_t len = vsnprintf(buf, sizeof(buf) - 1, format, (char *)(&format + 1));
     buf[sizeof(buf) - 1] = 0;
     // Find a position of a point on the screen
     static CMatrix mtx, view, prj;

@@ -2833,7 +2833,7 @@ int32_t DX9RENDER::Print(int32_t x, int32_t y, const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    vsnprintf_s(Buff_4k, sizeof(Buff_4k), format, args);
+    vsnprintf(Buff_4k, sizeof(Buff_4k), format, args);
     va_end(args);
 
     return FontList[idFontCurrent].font->Print(x, y, Buff_4k);
@@ -2850,7 +2850,7 @@ int32_t DX9RENDER::Print(int32_t nFontNum, uint32_t color, int32_t x, int32_t y,
 
     va_list args;
     va_start(args, format);
-    vsnprintf_s(Buff_4k, sizeof(Buff_4k), format, args);
+    vsnprintf(Buff_4k, sizeof(Buff_4k), format, args);
     va_end(args);
 
     FontList[nFontNum].font->StoreFontParameters();
@@ -2912,7 +2912,7 @@ int32_t DX9RENDER::ExtPrint(int32_t nFontNum, uint32_t foreColor, uint32_t backC
 
     va_list args;
     va_start(args, format);
-    vsnprintf_s(Buff_4k, sizeof(Buff_4k), format, args);
+    vsnprintf(Buff_4k, sizeof(Buff_4k), format, args);
     va_end(args);
 
     pFont->StoreFontParameters();
@@ -3816,19 +3816,40 @@ HRESULT DX9RENDER::GetRenderTargetData(IDirect3DSurface9 *pRenderTarget, IDirect
 {
     D3DSURFACE_DESC desc;
     if (CHECKD3DERR(pRenderTarget->GetDesc(&desc)))
-        return static_cast<HRESULT>(false);
+        return D3DERR_WRONGTEXTUREFORMAT;
 
     if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
     {
         IDirect3DSurface9 *pNonsampledSurface = nullptr;
 
-        CHECKD3DERR(d3d9->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE,
-                                             &pNonsampledSurface, nullptr));
-        CHECKD3DERR(d3d9->StretchRect(pRenderTarget, nullptr, pNonsampledSurface, nullptr, D3DTEXF_NONE));
-        
-        const auto result = CHECKD3DERR(d3d9->GetRenderTargetData(pNonsampledSurface, pDestSurface));
+        if(CHECKD3DERR(d3d9->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE,
+                                             &pNonsampledSurface, nullptr)))
+        {
+            return D3DERR_WRONGTEXTUREFORMAT;
+        }
+
+        if (CHECKD3DERR(pDestSurface->GetDesc(&desc)))
+        {
+            return D3DERR_WRONGTEXTUREFORMAT;
+        }
+
+        if (CHECKD3DERR(d3d9->StretchRect(pRenderTarget, nullptr, pNonsampledSurface, nullptr, D3DTEXF_NONE)))
+        {
+            return D3DERR_WRONGTEXTUREFORMAT;
+        }
+
+        bool error;
+        if (desc.Pool == D3DPOOL_SYSTEMMEM || desc.Pool == D3DPOOL_SCRATCH)
+        {
+            error = CHECKD3DERR(d3d9->GetRenderTargetData(pNonsampledSurface, pDestSurface));
+        }
+        else
+        {
+            error = UpdateSurface(pNonsampledSurface, nullptr, 0, pDestSurface, nullptr);
+        }
+
         pNonsampledSurface->Release();
-        return result;
+        return error ? D3DERR_WRONGTEXTUREFORMAT : D3D_OK;
     }
 
     return CHECKD3DERR(d3d9->GetRenderTargetData(pRenderTarget, pDestSurface));

@@ -1,4 +1,7 @@
 #include "sound_service.h"
+
+#include <thread>
+
 #include "entity.h"
 #include "matrix.h"
 #include "defines.h"
@@ -866,23 +869,16 @@ void SoundService::SetActiveWithFade(const bool active)
         if (PlayingSound.bFree)
             continue;
 
-        float volume = 0.0f;
-
-        if (PlayingSound.type == VOLUME_FX)
+        if (active)
         {
-            volume = fFXVolume;
+            PlayingSound.channel->addFadePoint(dsp_clock_start, 0.0f);
+            PlayingSound.channel->addFadePoint(dsp_clock_end, 1.0f);
         }
-        else if (PlayingSound.type == VOLUME_MUSIC)
+        else
         {
-            volume = fMusicVolume;
+            PlayingSound.channel->addFadePoint(dsp_clock_start, 1.0f);
+            PlayingSound.channel->addFadePoint(dsp_clock_end, 0.0f);
         }
-        else if (PlayingSound.type == VOLUME_SPEECH)
-        {
-            volume = fSpeechVolume;
-        }
-
-        PlayingSound.channel->addFadePoint(dsp_clock_start, active ? 0.0f : volume);
-        PlayingSound.channel->addFadePoint(dsp_clock_end, active ? volume : 0.0f);
     }
 
     if (!active)
@@ -1150,7 +1146,7 @@ void SoundService::DebugDraw()
     if (core.Controls->GetDebugAsyncKeyState('J') < 0)
     {
         bShowDebugInfo = !bShowDebugInfo;
-        Sleep(200);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
     if (!bShowDebugInfo)
@@ -1347,7 +1343,7 @@ void SoundService::DebugPrint3D(const CVECTOR &pos3D, float rad, int32_t line, f
 {
     static char buf[256];
     // print to the buffer
-    int32_t len = _vsnprintf_s(buf, sizeof(buf) - 1, format, (char *)(&format + 1));
+    int32_t len = vsnprintf(buf, sizeof(buf) - 1, format, (char *)(&format + 1));
     buf[sizeof(buf) - 1] = 0;
     // Looking for a point position on the screen
     static CMatrix mtx, view, prj;
