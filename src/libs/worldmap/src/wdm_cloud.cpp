@@ -10,7 +10,8 @@
 
 #include "wdm_cloud.h"
 #include "wdm_objects.h"
-#include "defines.h"
+#include "core.h"
+#include "math_inlines.h"
 
 #define WdmStormCloudHeight 40.0f
 #define WdmStormSizeMin 40.0f
@@ -63,7 +64,7 @@ void WdmCloud::Update(float dltTime)
     if (dltTime > 1.0f)
         dltTime = 1.0f;
 
-    if (GetKeyState(VK_NUMLOCK) != 0)
+    if (core.Controls->GetKeyState(VK_NUMLOCK) < 0)
     {
         dltTime = 0.0f;
     }

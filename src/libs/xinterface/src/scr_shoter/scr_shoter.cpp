@@ -2,6 +2,7 @@
 #include "../xdefines.h"
 
 #include "core.h"
+#include "string_compare.hpp"
 
 #define SS_TEXTURE_WIDTH 128
 #define SS_TEXTURE_HEIGHT 128
@@ -68,10 +69,10 @@ void SCRSHOTER::Realize(uint32_t Delta_Time)
         if (!MakeScreenShot())
         {
             core.Trace("ERROR!!! screen shot create error");
-            core.Event("makescrshot", nullptr);
+            core.Event("makescrshot");
         }
         else
-            core.Event("makescrshot", nullptr);
+            core.Event("makescrshot");
 }
 
 bool SCRSHOTER::MakeScreenShot()

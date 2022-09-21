@@ -44,15 +44,16 @@ void AISeaGoods::Execute(uint32_t dwDeltaTime)
     const auto fDeltaTime = static_cast<float>(dwDeltaTime) * 0.001f;
 
     if (!pSea)
-        pSea = static_cast<SEA_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("sea")));
+        pSea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
 
     if (!pSea)
         return;
 
-    for (auto &aGood : aGoods)
-        for (uint32_t j = 0; j < aGood->aItems.size(); j++)
+    for (size_t i = 0; i < aGoods.size(); i++)
+    {
+        for (size_t j = 0; j < aGoods[i]->aItems.size(); j++)
         {
-            auto *pI = &aGood->aItems[j];
+            auto *pI = &aGoods[i]->aItems[j];
             pI->fTime -= fDeltaTime;
 
             pI->vPos.y = pSea->WaveXZ(pI->vPos.x, pI->vPos.z, &pI->vNormal);
@@ -62,9 +63,8 @@ void AISeaGoods::Execute(uint32_t dwDeltaTime)
                 pI->vPos.y -= fabsf(pI->fTime) * 0.05f;
                 if (pI->fTime < -20.0f)
                 {
-                    // aGoods[i]->aItems.ExtractNoShift(j);
-                    aGood->aItems[j] = aGood->aItems.back();
-                    aGood->aItems.pop_back();
+                    aGoods[i]->aItems[j] = aGoods[i]->aItems.back();
+                    aGoods[i]->aItems.pop_back();
                     j--;
                     continue;
                 }
@@ -75,10 +75,10 @@ void AISeaGoods::Execute(uint32_t dwDeltaTime)
                 aShips.clear();
 
                 // enumerate ships
-                const auto &entities = EntityManager::GetEntityIdVector("ship");
+                auto &&entities = core.GetEntityIds("ship");
                 for (auto ent : entities)
                 {
-                    aShips.push_back(static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(ent)));
+                    aShips.push_back(static_cast<SHIP_BASE *>(core.GetEntityPointer(ent)));
                 }
 
                 // check ships
@@ -93,9 +93,8 @@ void AISeaGoods::Execute(uint32_t dwDeltaTime)
                                                   pI->sGoodName, pI->iQuantity);
                         if (pVData->GetInt() || bDeleteGoodAnyway)
                         {
-                            // aGoods[i]->aItems.ExtractNoShift(j);
-                            aGood->aItems[j] = aGood->aItems.back();
-                            aGood->aItems.pop_back();
+                            aGoods[i]->aItems[j] = aGoods[i]->aItems.back();
+                            aGoods[i]->aItems.pop_back();
                             j--;
                             break;
                         }
@@ -103,6 +102,7 @@ void AISeaGoods::Execute(uint32_t dwDeltaTime)
                 }
             }
         }
+    }
 }
 
 void AISeaGoods::Realize(uint32_t dwDeltaTime)
@@ -166,7 +166,7 @@ uint32_t AISeaGoods::AttributeChanged(ATTRIBUTES *pAttribute)
     }
     if (*pAttribute == "Model")
     {
-        sTmpModel = pAttribute->GetThisAttr();
+        sTmpModel = to_string(pAttribute->GetThisAttr());
         return 0;
     }
     if (*pAttribute == "Good")
@@ -191,7 +191,7 @@ uint32_t AISeaGoods::AttributeChanged(ATTRIBUTES *pAttribute)
 
     if (*pAttribute == "ModelsPath")
     {
-        sModelPath = pAttribute->GetThisAttr();
+        sModelPath = to_string(pAttribute->GetThisAttr());
         return 0;
     }
     if (*pAttribute == "DeleteGoodAnyway")

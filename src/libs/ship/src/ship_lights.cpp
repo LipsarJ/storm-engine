@@ -1,4 +1,8 @@
 #include "ship_lights.h"
+
+#include <algorithm>
+
+#include "math3d.h"
 #include "shared/messages.h"
 #include "ship.h"
 
@@ -42,7 +46,7 @@ bool ShipLights::Init()
     Assert(pRS);
     pCollide = static_cast<COLLIDE *>(core.GetService("coll"));
     Assert(pCollide);
-    pSea = static_cast<SEA_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("sea")));
+    pSea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
     return true;
 }
 
@@ -160,7 +164,7 @@ void ShipLights::AddDynamicLights(VAI_OBJBASE *pObject, const CVECTOR &vPos)
     light.fBrokenTime = 0.0f;
     light.bDead = false;
     light.fTotalBrokenTime = 0.0f;
-    ZERO(light.Light);
+    light.Light = {};
     light.Light.Type = D3DLIGHT_POINT;
     light.Light.Diffuse.r = pLT->cLightColor.r;
     light.Light.Diffuse.g = pLT->cLightColor.g;
@@ -174,21 +178,33 @@ void ShipLights::AddDynamicLights(VAI_OBJBASE *pObject, const CVECTOR &vPos)
     aLights.push_back(light);
 }
 
+bool ShipLights::SetLabel(ShipLight *pL, MODEL *pModel, const char *pStr)
+{
+    pL->pNode = pModel->FindNode(pStr);
+    if (!pL->pNode)
+        return false;
+
+    CMatrix mNode = pL->pNode->glob_mtx;
+    mNode.Transposition();
+    pL->vPos = mNode * pL->vPos;
+    return true;
+}
+
 void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, const GEOS::LABEL &label)
 {
     CMatrix m;
-    char str[256], str2[256];
-    ZERO(str);
+    char str[256]{}, str2[256];
     if (!label.name)
         return;
     strcpy_s(str, label.name);
-    _strlwr(str);
+    std::ranges::for_each(str, [](char &c) { c = std::tolower(c); });
 
     aLights.push_back(ShipLight{});
     ShipLight *pL = &aLights.back();
     memcpy(m, label.m, sizeof(m));
 
     pL->pNode = nullptr;
+    pL->vPos = m.Pos();
 
     if (str[0] != 'f' && !bLight)
         return;
@@ -229,17 +245,11 @@ void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, cons
             }
         }
 
-        pL->pNode = pModel->FindNode(str2);
-        if (!pL->pNode)
+        if (!SetLabel(pL, pModel, str2))
         {
             aLights.pop_back();
             return;
         }
-        // lights & flares position transform
-        pL->vPos = m.Pos();
-        CMatrix mNode = pL->pNode->glob_mtx;
-        mNode.Transposition();
-        pL->vPos = mNode * pL->vPos;	
     }
 
     LightType *pLT = FindLightType((bLight) ? "default" : "flare");
@@ -262,7 +272,7 @@ void ShipLights::AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, cons
 
     if (bLight)
     {
-        ZERO(pL->Light);
+        pL->Light = {};
         pL->bCoronaOnly = false;
         pL->Light.Type = D3DLIGHT_POINT;
         pL->Light.Diffuse.r = pLT->cLightColor.r;
@@ -502,10 +512,10 @@ void ShipLights::Execute(uint32_t dwDeltaTime)
             L.bVisible = true;
 
             float fDistance =
-                pCollide->Trace(EntityManager::GetEntityIdIterators(SAILS_TRACE), L.vCurPos, vCamPos, nullptr, 0);
+                pCollide->Trace(core.GetEntityIds(SAILS_TRACE), L.vCurPos, vCamPos, nullptr, 0);
             L.fFlareAlphaMax = (fDistance >= 1.0f) ? 1.0f : 0.2f;
 
-            const auto its = EntityManager::GetEntityIdIterators(SUN_TRACE);
+            const auto its = core.GetEntityIds(SUN_TRACE);
             fDistance = pCollide->Trace(its, L.vCurPos, vCamPos, nullptr, 0);
             const float fLen = fDistance * sqrtf(~(vCamPos - L.vCurPos));
             L.bVisible = fDistance >= 1.0f || (fLen < 0.6f);

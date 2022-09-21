@@ -1,6 +1,5 @@
 #include "font.h"
 #include "core.h"
-#include "defines.h"
 #include "utf8.h"
 
 static char Buffer1024[1024];
@@ -12,8 +11,6 @@ FONT::FONT()
     VBuffer = nullptr;
     TextureID = -1;
     Color = oldColor = 0xffffffff;
-    PZERO(CharT, sizeof(CharT));
-    PZERO(&Pos, sizeof(Pos));
     bInverse = bOldInverse = false;
     techniqueName = nullptr;
     textureName = nullptr;
@@ -230,13 +227,20 @@ int32_t FONT::GetStringWidth(const char *Text)
 {
     if (Text == nullptr)
         return 0;
+    return GetStringWidth(std::string_view(Text));
+}
+
+int32_t FONT::GetStringWidth(const std::string_view &text)
+{
+    if (text.empty())
+        return 0;
     float xoffset = 0;
-    const int32_t s_num = strlen(Text);
+    const int32_t s_num = text.size();
     //  core.Trace("%s", Text);
 
-    for (int32_t i = 0; i < s_num; i += utf8::u8_inc(Text + i))
+    for (int32_t i = 0; i < s_num; i += utf8::u8_inc(text.data() + i))
     {
-        uint32_t Codepoint = utf8::Utf8ToCodepoint(Text + i);
+        uint32_t Codepoint = utf8::Utf8ToCodepoint(text.data() + i);
         Assert(Codepoint < USED_CODES);
 
         FLOAT_RECT pos = CharT[Codepoint].Pos;

@@ -13,6 +13,7 @@
 #include "core.h"
 
 #include "entity.h"
+#include "string_compare.hpp"
 // ============================================================================================
 // Construction, destruction
 // ============================================================================================
@@ -51,10 +52,10 @@ bool Lighter::Init()
     if (!rs)
         throw std::runtime_error("No service: dx9render");
     //
-    EntityManager::SetLayerType(LIGHTER_EXECUTE, EntityManager::Layer::Type::execute);
-    EntityManager::AddToLayer(LIGHTER_EXECUTE, GetId(), 1000);
-    EntityManager::SetLayerType(LIGHTER_REALIZE, EntityManager::Layer::Type::realize);
-    EntityManager::AddToLayer(LIGHTER_REALIZE, GetId(), 1000);
+    core.SetLayerType(LIGHTER_EXECUTE, layer_type_t::execute);
+    core.AddToLayer(LIGHTER_EXECUTE, GetId(), 1000);
+    core.SetLayerType(LIGHTER_REALIZE, layer_type_t::realize);
+    core.AddToLayer(LIGHTER_REALIZE, GetId(), 1000);
     //
     lightProcessor.SetParams(&geometry, &window, &lights, &octTree, rs);
     // window system
@@ -89,7 +90,7 @@ void Lighter::Execute(uint32_t delta_time)
     }
     if (waitChange <= 0.0f)
     {
-        if (GetAsyncKeyState(VK_NUMPAD0) < 0)
+        if (core.Controls->GetAsyncKeyState(VK_NUMPAD0) < 0)
         {
             waitChange = 0.5f;
             if (isInited)
@@ -166,7 +167,7 @@ void Lighter::PreparingData()
 
 void Lighter::Realize(uint32_t delta_time)
 {
-    if (GetAsyncKeyState(VK_DECIMAL) < 0)
+    if (core.Controls->GetAsyncKeyState(VK_DECIMAL) < 0)
     {
         window.isNoPrepared = !isInited;
         geometry.DrawNormals(rs);

@@ -1,6 +1,7 @@
 #include "pcs_controls.h"
 
 #include "core.h"
+#include "string_compare.hpp"
 
 #include "v_file_service.h"
 
@@ -433,7 +434,7 @@ void PCS_CONTROLS::Update(uint32_t DeltaTime)
     nMouseDy = point.y - nMouseYPrev;
 
     RECT r;
-    GetWindowRect(static_cast<HWND>(core.GetAppHWND()), &r);
+    GetWindowRect(static_cast<HWND>(core.GetWindow()->OSHandle()), &r);
     nMouseXPrev = r.left + (r.right - r.left) / 2;
     nMouseYPrev = r.top + (r.bottom - r.top) / 2;
     SetCursorPos(nMouseXPrev, nMouseYPrev);
@@ -590,6 +591,16 @@ void PCS_CONTROLS::ClearKeyBuffer()
     m_KeyBuffer.Reset();
 }
 
+short PCS_CONTROLS::GetAsyncKeyState(int vk)
+{
+    return IsKeyPressed(vk) ? -1 : 0;
+}
+
+short PCS_CONTROLS::GetKeyState(int vk)
+{
+    return GetAsyncKeyState(vk);
+}
+
 short PCS_CONTROLS::GetDebugAsyncKeyState(int vk)
 {
     // -1 because WinAPI sets msb when key pressed, so old code expects negative value
@@ -629,6 +640,28 @@ bool PCS_CONTROLS::IsKeyPressed(int vk)
         pressed = input_->KeyboardSDLKeyState(SDL_SCANCODE_RETURN) ||
                   input_->KeyboardSDLKeyState(SDL_SCANCODE_KP_ENTER);
     }
+    else if (vk == VK_UP)
+    {
+        pressed = input_->KeyboardSDLKeyState(SDL_SCANCODE_UP) ||
+                  (!input_->KeyboardModState(VK_NUMLOCK) && input_->KeyboardSDLKeyState(SDL_SCANCODE_KP_8));
+    }
+    else if (vk == VK_DOWN)
+    {
+        pressed = input_->KeyboardSDLKeyState(SDL_SCANCODE_DOWN) ||
+                  (!input_->KeyboardModState(VK_NUMLOCK) && input_->KeyboardSDLKeyState(SDL_SCANCODE_KP_2));
+    }
+    else if (vk == VK_LEFT)
+    {
+        pressed = input_->KeyboardSDLKeyState(SDL_SCANCODE_LEFT) ||
+                  (!input_->KeyboardModState(VK_NUMLOCK) && input_->KeyboardSDLKeyState(SDL_SCANCODE_KP_4));
+    }
+    else if (vk == VK_RIGHT)
+    {
+        pressed = input_->KeyboardSDLKeyState(SDL_SCANCODE_RIGHT) ||
+                  (!input_->KeyboardModState(VK_NUMLOCK) && input_->KeyboardSDLKeyState(SDL_SCANCODE_KP_6));
+    }
+    else if (vk == VK_NUMLOCK)
+        pressed = input_->KeyboardModState(vk);
     else
         pressed = input_->KeyboardKeyState(vk);
 

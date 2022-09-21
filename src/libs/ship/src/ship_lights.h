@@ -1,8 +1,8 @@
 #pragma once
 
 #include "collide.h"
-#include "defines.h"
 #include "dx9render.h"
+#include "math_inlines.h"
 #include "sea_base.h"
 #include <ship_lights.h>
 
@@ -117,6 +117,7 @@ class ShipLights : public IShipLights
     LightType *FindLightType(std::string sLightType);
     float GetAttributeAsFloat(ATTRIBUTES *pA, const char *pName, float fDefault);
     void AddFlare(VAI_OBJBASE *pObject, bool bLight, MODEL *pModel, const GEOS::LABEL &label);
+    bool SetLabel(ShipLight *pL, MODEL *pModel, const char *pStr);
 
   public:
     static VDX9RENDER *pRS;

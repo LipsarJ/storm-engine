@@ -10,9 +10,11 @@
 
 #pragma once
 
+#include "animation.h"
 #include "matrix.h"
 #include "model.h"
-#include "v_module_api.h"
+#include "string_compare.hpp"
+#include "vma.hpp"
 #include <string>
 
 class Location;
@@ -217,7 +219,7 @@ class Character : public Entity
         return 0;
     };
 
-    void AlreadySTORM_DELETE();
+    void AlreadyDeleted();
 
     //--------------------------------------------------------------------------------------------
     // Character model
@@ -427,7 +429,7 @@ class Character : public Entity
     float GetAniPlayTime();
     bool SetPriorityAction(const char *action);
     // Check another character for hit by us
-    void CheckAttackHit();
+    void CheckAttackHit(bool isGunBlade);
     // Refresh weapon state
     void UpdateWeapons();
     // Get direction towards the enemy to bounce on hit
@@ -712,7 +714,7 @@ class Character : public Entity
     entid_t loc_id;
 };
 
-inline void Character::AlreadySTORM_DELETE()
+inline void Character::AlreadyDeleted()
 {
     isDeleted = true;
 }

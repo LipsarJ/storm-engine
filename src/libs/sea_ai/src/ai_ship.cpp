@@ -1,6 +1,6 @@
 #include "ai_ship.h"
 #include "ai_fort.h"
-#include "inlines.h"
+#include "math_inlines.h"
 
 std::vector<AIShip *> AIShip::AIShips;
 std::vector<AIShip::can_fire_t> AIShip::aShipFire;
@@ -26,7 +26,7 @@ AIShip::AIShip(AI_OBJTYPE shiptype)
 
 AIShip::~AIShip()
 {
-    DELETE_Entity(eidShip);
+    core.EraseEntity(eidShip);  
 
     STORM_DELETE(pMoveController);
     STORM_DELETE(pTaskController);
@@ -237,7 +237,7 @@ void AIShip::CreateShip(entid_t _eidShip, ATTRIBUTES *_pACharacter, ATTRIBUTES *
     pAShipBase = _pAShipBase;
 
     eidShip = _eidShip;
-    Assert(EntityManager::GetEntityPointer(eidShip));
+    Assert(core.GetEntityPointer(eidShip));
     auto *pObj = GetAIObjShipPointer();
     Assert(pObj);
     SetACharacter(_pACharacter);
@@ -581,10 +581,10 @@ void AIShip::SwapShips(AIShip *pOtherShip)
     SetDead(pOtherShip->isDead());
     pOtherShip->SetDead(bThisDead);
 
-    Swap(pMoveController, pOtherShip->pMoveController);
-    Swap(pRotateController, pOtherShip->pRotateController);
-    Swap(pSpeedController, pOtherShip->pSpeedController);
-    Swap(pTaskController, pOtherShip->pTaskController);
+    std::swap(pMoveController, pOtherShip->pMoveController);
+    std::swap(pRotateController, pOtherShip->pRotateController);
+    std::swap(pSpeedController, pOtherShip->pSpeedController);
+    std::swap(pTaskController, pOtherShip->pTaskController);
 
     pCannonController->SetAIShip(this);
     if (pCameraController)
@@ -704,7 +704,7 @@ void AIShip::Save(CSaveLoad *pSL) const
 void AIShip::Load(CSaveLoad *pSL)
 {
     // create ship
-    eidShip = EntityManager::CreateEntity("Ship");
+    eidShip = core.CreateEntity("Ship");
     GetShipBasePointer()->Load(pSL);
 
     SetACharacter(pSL->LoadAPointer("character"));

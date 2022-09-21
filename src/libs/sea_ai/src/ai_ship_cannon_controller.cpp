@@ -1,6 +1,8 @@
+#include <thread>
+
 #include "ai_balls.h"
 #include "ai_ship.h"
-#include "inlines.h"
+#include "math_inlines.h"
 
 float AIShipCannonController::fMaxCannonDamageDistance = 1.0f;
 float AIShipCannonController::fMaxCannonDamageRadiusPoint = 1.0f;
@@ -605,10 +607,10 @@ void AIShipCannonController::Realize(float fDeltaTime)
                 constexpr auto green = ARGB(0xFF, 0x7C, 0xFC, 0x00);
 
                 const auto &&vPos = cannon.GetPos();
-                Lines.emplace_back(vPos, red);
-                Lines.emplace_back(vPos + 5.0f * cannon.GetDir(), red);
-                Lines.emplace_back(vPos, green);
-                Lines.emplace_back(vPos + CVECTOR{0.0f, cannon.GetDirY(), 0.0f}, green);
+                Lines.emplace_back(RS_LINE{vPos, red});
+                Lines.emplace_back(RS_LINE{vPos + 5.0f * cannon.GetDir(), red});
+                Lines.emplace_back(RS_LINE{vPos, green});
+                Lines.emplace_back(RS_LINE{vPos + CVECTOR{0.0f, cannon.GetDirY(), 0.0f}, green});
             }
         }
     }
@@ -655,8 +657,7 @@ void AIShipCannonController::Realize(float fDeltaTime)
             const float fDA = PId2 / 36.0f;
             for (float fAng = fDir - fRastr / 2.0f; fAng < fDir + fRastr / 2.0f; fAng += fDA)
             {
-                CVECTOR v[3];
-                ZERO(v);
+                CVECTOR v[3]{};
                 const float R = fDist;
                 v[0].x = vPosTemp.x;
                 v[0].z = vPosTemp.z;
@@ -672,9 +673,9 @@ void AIShipCannonController::Realize(float fDeltaTime)
                 v[2] += v[0];
 
                 constexpr auto color = ARGB(0x0F, 0x90, 0xEE, 0x90);
-                Verts.emplace_back(v[0], color);
-                Verts.emplace_back(v[1], color);
-                Verts.emplace_back(v[2], color);
+                Verts.emplace_back(tr_vertex{v[0], color});
+                Verts.emplace_back(tr_vertex{v[1], color});
+                Verts.emplace_back(tr_vertex{v[2], color});
             }
         }
     }

@@ -185,7 +185,7 @@ void SHIP_DESCRIBE_LIST::Release(int32_t charIdx)
 }
 
 void SHIP_DESCRIBE_LIST::Add(int32_t mainChrIndex, int32_t chIdx, ATTRIBUTES *pChAttr, ATTRIBUTES *pShipAttr, bool bMyShip,
-                             int32_t relation, uint32_t dwShipColor)
+                             bool bTransferableShip, int32_t relation, uint32_t dwShipColor)
 {
     assert(pChAttr != NULL);
     assert(pShipAttr != NULL);
@@ -199,6 +199,7 @@ void SHIP_DESCRIBE_LIST::Add(int32_t mainChrIndex, int32_t chIdx, ATTRIBUTES *pC
     pr->maxHP = pShipAttr->GetAttributeAsDword("HP");
     pr->maxSP = pShipAttr->GetAttributeAsDword("SP");
     pr->isMyShip = bMyShip;
+    pr->isTransferableShip = bTransferableShip;
     pr->relation = relation;
     pr->isDead = false;
     pr->pShip = nullptr;
@@ -215,10 +216,10 @@ void SHIP_DESCRIBE_LIST::Add(int32_t mainChrIndex, int32_t chIdx, ATTRIBUTES *pC
     pr->next = nullptr;
 
     // find this ship
-    const auto &entities = EntityManager::GetEntityIdVector("ship");
+    auto &&entities = core.GetEntityIds("ship");
     for (auto ship : entities)
     {
-        auto *vob = static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(ship));
+        auto *vob = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(ship));
         if (vob == nullptr)
             continue;
         auto *pA = vob->GetACharacter();
@@ -230,7 +231,7 @@ void SHIP_DESCRIBE_LIST::Add(int32_t mainChrIndex, int32_t chIdx, ATTRIBUTES *pC
     }
     /*if( NetFindClass(false,&ei,"netship") ) do
     {
-      VAI_OBJBASE * vob = (VAI_OBJBASE*)EntityManager::GetEntityPointer(ei);
+      VAI_OBJBASE * vob = (VAI_OBJBASE*)core.GetEntityPointer(ei);
       if(vob== nullptr) continue;
       ATTRIBUTES *pA = vob->GetACharacter();
       if((int32_t)pA->GetAttributeAsDword("id")==chIdx)
@@ -285,10 +286,10 @@ void SHIP_DESCRIBE_LIST::Refresh()
 
     TMP_LONG_STACK tls;
 
-    const auto &entities = EntityManager::GetEntityIdVector("ship");
+    auto &&entities = core.GetEntityIds("ship");
     for (auto ship : entities)
     {
-        auto *vob = static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(ship));
+        auto *vob = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(ship));
         if (vob == nullptr)
             continue;
         auto *pA = vob->GetACharacter();
@@ -299,7 +300,7 @@ void SHIP_DESCRIBE_LIST::Refresh()
 
     /*if( NetFindClass(false,&ei,"NetShip") ) do
     {
-      VAI_OBJBASE * vob = (VAI_OBJBASE*)EntityManager::GetEntityPointer(ei);
+      VAI_OBJBASE * vob = (VAI_OBJBASE*)core.GetEntityPointer(ei);
       if(vob== nullptr) continue;
       ATTRIBUTES * pA= vob->GetACharacter();
       if(pA== nullptr) continue;

@@ -45,9 +45,12 @@ void SEA_AI::Execute(uint32_t Delta_Time)
         bFirstInit = false;
     }
 
-    for (auto &i : AIGroup::AIGroups)
+    // Don't use range-based for loop here. AIGroup::AIGroups can be pushed to while executing, potentially invalidating
+    // any iterators
+    for (size_t i = 0; i < AIGroup::AIGroups.size(); ++i)
     {
-        i->Execute(fDeltaTime);
+        const auto group = AIGroup::AIGroups[i];
+        group->Execute(fDeltaTime);
     }
 
     RDTSC_E(dwRDTSC);
@@ -147,7 +150,7 @@ uint64_t SEA_AI::ProcessMessage(MESSAGE &message)
         auto *pAIShip = AIShip::FindShip(pCharacter);
         if (!pAIShip)
         {
-            core.Trace("SeaAI err: SetSailState, can't find ship for character = %s", pCharacter->GetAttribute("id"));
+            core.Trace("SeaAI err: SetSailState, can't find ship for character = %s", static_cast<const char*>(pCharacter->GetAttribute("id")));
             return 0;
         }
         core.Send_Message(pAIShip->GetShipEID(), "lf", MSG_SHIP_SET_SAIL_STATE, fSailState);
@@ -359,7 +362,7 @@ void SEA_AI::Save(const char *pStr)
     SL.CreateWrite();
 
     Helper.Save(&SL);
-    core.Send_Message(EntityManager::GetEntityId("SEA_CAMERAS"), "lp", AI_MESSAGE_SEASAVE, &SL);
+    core.Send_Message(core.GetEntityId("SEA_CAMERAS"), "lp", AI_MESSAGE_SEASAVE, &SL);
 
     AIBalls::pAIBalls->Save(&SL);
 
@@ -380,7 +383,7 @@ void SEA_AI::Load(const char *pStr)
     SL.CreateLoad();
 
     Helper.Load(&SL);
-    core.Send_Message(EntityManager::GetEntityId("SEA_CAMERAS"), "lp", AI_MESSAGE_SEALOAD, &SL);
+    core.Send_Message(core.GetEntityId("SEA_CAMERAS"), "lp", AI_MESSAGE_SEALOAD, &SL);
 
     AIBalls::pAIBalls->Load(&SL);
 
@@ -424,7 +427,7 @@ void SEA_AI::AddShip(entid_t eidShip, ATTRIBUTES *pCharacter, ATTRIBUTES *pAShip
     Assert(pG);
 
     // search group
-    auto *const pGName = pG->GetAttribute("Name");
+    const char *pGName = pG->GetAttribute("Name");
     Assert(pGName);
 
     AIGroup::FindOrCreateGroup(pGName)->AddShip(eidShip, pCharacter, pAShip);
@@ -442,7 +445,7 @@ void SEA_AI::SetCompanionEnemy(ATTRIBUTES *pACharacter)
     // create and add to new group
     auto *pSeaAIG = pACharacter->FindAClass(pACharacter, "SeaAI.Group");
     Assert(pSeaAIG);
-    auto *const pGName = pSeaAIG->GetAttribute("Name");
+    const char *pGName = pSeaAIG->GetAttribute("Name");
     Assert(pGName);
 
     AIGroup::FindOrCreateGroup(pGName)->InsertShip(pS);

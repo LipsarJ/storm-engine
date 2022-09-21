@@ -10,7 +10,8 @@
 
 #include "action_info.h"
 #include "storm_assert.h"
-#include "storm/string_compare.hpp"
+#include "string_compare.hpp"
+#include "platform/platform.hpp"
 
 // ============================================================================================
 // Construction, destruction

@@ -11,7 +11,7 @@
 #pragma once
 
 #include "dx9render.h"
-#include "v_module_api.h"
+#include "vma.hpp"
 
 class Fader : public Entity
 {
@@ -53,8 +53,7 @@ class Fader : public Entity
     // --------------------------------------------------------------------------------------------
   private:
     VDX9RENDER *rs;
-    IDirect3DSurface9 *renderTarget;
-    IDirect3DTexture9 *textureBase;
+    IDirect3DTexture9 *tex;
 
     bool isWork;
     bool haveFrame;

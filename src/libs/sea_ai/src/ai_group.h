@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ai_ship.h"
-#include "v_module_api.h"
+#include "vma.hpp"
 
 // ============================================================================
 // Master class AIGroup
@@ -17,7 +17,6 @@ class AIGroup
     std::string sGroupType;
     CVECTOR vInitGroupPos, vMovePoint;
     bool bFirstExecute;
-    uint32_t iWarShipsNum, iTradeShipsNum;
 
     ATTRIBUTES *pACommander;
 

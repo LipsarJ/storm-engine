@@ -1,5 +1,19 @@
 #include "island.h"
-#include "inlines.h"
+#include "math_inlines.h"
+#include "debug-trap.h"
+
+namespace
+{
+
+uint32_t Number2Shift(uint32_t dwNumber)
+{
+    for (uint32_t i = 0; i < 31; i++)
+        if (static_cast<uint32_t>(1 << i) == dwNumber)
+            return i;
+    return 0;
+}
+
+}
 
 MapZipper::MapZipper()
 {
@@ -76,7 +90,7 @@ void MapZipper::DoZip(uint8_t *pSrc, uint32_t _dwSizeX)
         for (x = 0; x < _dwSizeX; x++)
         {
             if (Get(x, y) != pSrc[x + y * _dwSizeX])
-                __debugbreak();
+                psnip_trap();
         }
 }
 

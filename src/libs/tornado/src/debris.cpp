@@ -9,8 +9,10 @@
 //============================================================================================
 
 #include "debris.h"
-#include "entity.h"
+
 #include "core.h"
+#include "dx9render.h"
+#include "entity.h"
 #include "geometry.h"
 #include "shared/messages.h"
 #include "ship_base.h"
@@ -31,7 +33,7 @@ Debris::Debris(Pillar &_pillar) : pillar(_pillar)
 Debris::~Debris()
 {
     for (int32_t i = 0; i < numModels; i++)
-        EntityManager::EraseEntity(mdl[i].mdl->GetId());
+        core.EraseEntity(mdl[i].mdl->GetId());
 }
 
 void Debris::Init()
@@ -158,9 +160,9 @@ void Debris::AddModel(const char *modelName, float prt, float spd)
         return;
     // Create a model
     entid_t id;
-    if (!(id = EntityManager::CreateEntity("modelr")))
+    if (!(id = core.CreateEntity("modelr")))
         return;
-    auto *m = static_cast<MODEL *>(EntityManager::GetEntityPointer(id));
+    auto *m = static_cast<MODEL *>(core.GetEntityPointer(id));
     if (!m)
         return;
     // Path to textures
@@ -176,7 +178,7 @@ void Debris::AddModel(const char *modelName, float prt, float spd)
     catch (...)
     {
         gs->SetTexturePath("");
-        EntityManager::EraseEntity(id);
+        core.EraseEntity(id);
         return;
     }
     gs->SetTexturePath("");
@@ -221,11 +223,11 @@ bool Debris::IsShip()
 {
     const CVECTOR p(pillar.GetX(0.0f), 0.0f, pillar.GetZ(0.0f));
     CVECTOR pos;
-    const auto &entities = EntityManager::GetEntityIdVector("ship");
+    auto &&entities = core.GetEntityIds("ship");
     for (auto id : entities)
     {
         // Object pointer
-        auto *ship = static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(id));
+        auto *ship = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(id));
         if (!ship)
             break;
         // Tornado position in the ship system

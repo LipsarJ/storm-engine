@@ -1,6 +1,7 @@
 #include "blood.h"
 #include "character.h"
-#include "defines.h"
+#include "core.h"
+#include "math_inlines.h"
 
 #define BLOOD_RADIUS 1.f        // blood stain size
 #define BLOOD_LIVE_TIME 5.5f    // sec
@@ -166,13 +167,13 @@ void Blood::AddBlood(const CVECTOR &pos)
 
     auto cpos = pos;
 
-    const auto its = EntityManager::GetEntityIdIterators(BLOOD);
+    auto &&entities = core.GetEntityIds(BLOOD);
 
     auto src = pos;
     src.y += 1.f;
     auto dst = pos;
     dst.y -= 10.f;
-    auto fTrace = pCol->Trace(its, src, dst, nullptr, 0);
+    auto fTrace = pCol->Trace(entities, src, dst, nullptr, 0);
     if (fTrace <= 1.f)
         cpos.y = src.y + (dst.y - src.y) * fTrace;
 
@@ -192,7 +193,7 @@ void Blood::AddBlood(const CVECTOR &pos)
         src.y += 1.5f;
         dst = cpos;
         dst.y -= 10.f;
-        fTrace = pCol->Trace(its, src, dst, nullptr, 0);
+        fTrace = pCol->Trace(entities, src, dst, nullptr, 0);
         if (fTrace <= 1.f)
             cpos.y = src.y + (dst.y - src.y) * fTrace;
     }
@@ -225,9 +226,9 @@ void Blood::AddBlood(const CVECTOR &pos)
     p[5].D = -(cpos.x - BLOOD_RADIUS);
 
     // loop through the layer
-    for (auto it = its.first; it != its.second; ++it)
+    for (auto ent_id : entities)
     {
-        auto *m = static_cast<MODEL *>(EntityManager::GetEntityPointer(it->second));
+        auto *m = static_cast<MODEL *>(core.GetEntityPointer(ent_id));
         if (!m)
             continue;
         auto *root = m->GetNode(0);
@@ -237,7 +238,7 @@ void Blood::AddBlood(const CVECTOR &pos)
     // loop through the array of models
     for (int32_t n = 0; n < aModels.size(); n++)
     {
-        auto *m = static_cast<MODEL *>(EntityManager::GetEntityPointer(aModels[n]));
+        auto *m = static_cast<MODEL *>(core.GetEntityPointer(aModels[n]));
         if (!m)
             continue;
         auto *root = m->GetNode(0);

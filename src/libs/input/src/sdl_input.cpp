@@ -3,7 +3,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_system.h>
 #include <SDL2/SDL_video.h>
-#include <Windows.h>
+#include <windows.h>
 #include <map>
 
 namespace storm
@@ -388,6 +388,18 @@ void SDLInput::ProcessEvent(const SDL_Event &event)
         for (const auto &handler : handlers_)
             handler.second(out);
     }
+}
+
+bool SDLInput::KeyboardModState(const KeyboardKey &key) const
+{
+    if (key == VK_NUMLOCK)
+        return SDL_GetModState() & KMOD_NUM;
+    else if (key == VK_CAPITAL)
+        return SDL_GetModState() & KMOD_CAPS;
+    else if (key == VK_SCROLL)
+        return SDL_GetModState() & KMOD_SCROLL;
+    else
+       return false;
 }
 
 bool SDLInput::KeyboardKeyState(const KeyboardKey &key) const

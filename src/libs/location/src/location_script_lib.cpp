@@ -4,8 +4,8 @@
 
 #include "entity.h"
 #include "fader.h"
-#include "steam_api_impl.hpp"
 #include "core.h"
+#include "string_compare.hpp"
 #include "s_import_func.h"
 #include "v_s_stack.h"
 
@@ -70,10 +70,10 @@ inline bool CheckID(VDATA *vd, const char *id, bool &res)
     a = a->GetAttributeClass("id");
     if (!a)
         return true;
-    auto *const attr = a->GetThisAttr();
-    if (!attr)
+    if (!a->HasValue()) {
         return true;
-    res = storm::iEquals(attr, id);
+    }
+    res = storm::iEquals(to_string(a->GetThisAttr()), id);
     return true;
 }
 
@@ -200,13 +200,13 @@ uint32_t slNativeFindLaodLocation(VS_STACK *pS)
     if (!pReturn)
         return IFUNCRESULT_FAILED;
     // Looking for a location
-    const auto loc = EntityManager::GetEntityId("location");
+    const auto loc = core.GetEntityId("location");
     if (!loc)
     {
         pReturn->Set(-1);
         return IFUNCRESULT_OK;
     }
-    Entity *l = EntityManager::GetEntityPointer(loc);
+    Entity *l = core.GetEntityPointer(loc);
     if (!l || !l->AttributesPointer)
     {
         pReturn->Set(-1);

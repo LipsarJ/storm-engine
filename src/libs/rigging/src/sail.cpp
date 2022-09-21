@@ -3,13 +3,15 @@
 #include "core.h"
 
 #include "weather_base.h"
-#include "defines.h"
 #include "entity.h"
+#include "math3d.h"
+#include "math_inlines.h"
 #include "shared/battle_interface/msg_control.h"
 #include "shared/mast_msg.h"
 #include "shared/sail_msg.h"
 #include "shared/sea_ai/script_defines.h"
 #include "ship_base.h"
+#include "string_compare.hpp"
 #include "v_file_service.h"
 
 #define WIND_SPEED_MAX 12.f
@@ -276,17 +278,17 @@ void SAIL::Execute(uint32_t Delta_Time)
         if (nTmpMastNum >= 0)
         {
             MODEL *pTmpMdl = nullptr;
-            if ((pTmpMdl = static_cast<MODEL *>(EntityManager::GetEntityPointer(gdata[0].modelEI))) != nullptr)
+            if ((pTmpMdl = static_cast<MODEL *>(core.GetEntityPointer(gdata[0].modelEI))) != nullptr)
             {
                 char pcTmpMastName[256];
                 sprintf_s(pcTmpMastName, "mast%d", nTmpMastNum);
                 if (auto *nod = pTmpMdl->FindNode(pcTmpMastName))
                 {
                     entid_t eiMastTmp;
-                    if (eiMastTmp = EntityManager::CreateEntity("MAST"))
+                    if (eiMastTmp = core.CreateEntity("MAST"))
                     {
-                        EntityManager::AddToLayer(SEA_EXECUTE, eiMastTmp, 2 + 1);
-                        EntityManager::AddToLayer(SEA_REALIZE, eiMastTmp, 31 + 1);
+                        core.AddToLayer(SEA_EXECUTE, eiMastTmp, 2 + 1);
+                        core.AddToLayer(SEA_REALIZE, eiMastTmp, 31 + 1);
                         core.Send_Message(eiMastTmp, "lpii", MSG_MAST_SETGEOMETRY, nod, gdata[0].shipEI,
                                           gdata[0].modelEI);
                     }
@@ -354,9 +356,9 @@ void SAIL::Execute(uint32_t Delta_Time)
         }
 
         // get the wind value
-        if (const auto ei = EntityManager::GetEntityId("weather"))
+        if (const auto ei = core.GetEntityId("weather"))
         {
-            auto wb = static_cast<WEATHER_BASE *>(EntityManager::GetEntityPointer(ei));
+            auto wb = static_cast<WEATHER_BASE *>(core.GetEntityPointer(ei));
             globalWind.ang.x = wb->GetFloat(whf_wind_angle);
             globalWind.ang.z = cosf(globalWind.ang.x);
             globalWind.ang.x = sinf(globalWind.ang.x);
@@ -371,7 +373,7 @@ void SAIL::Execute(uint32_t Delta_Time)
             if (gdata[i].bDeleted)
                 continue;
             MODEL *cmod;
-            cmod = static_cast<MODEL *>(EntityManager::GetEntityPointer(gdata[i].modelEI));
+            cmod = static_cast<MODEL *>(core.GetEntityPointer(gdata[i].modelEI));
             if (cmod == nullptr)
                 continue;
             gdata[i].boxCenter = gdata[i].boxSize = slist[gdata[i].sailIdx[0]]->ss.boundSphere.rc;
@@ -466,7 +468,7 @@ void SAIL::Execute(uint32_t Delta_Time)
                 if (gdata[i].bYesShip)
                 {
                     ATTRIBUTES *pA =
-                        static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(gdata[i].shipEI))->GetACharacter();
+                        static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[i].shipEI))->GetACharacter();
                     core.Event("Ship_SailsMoveSound", "al", pA, static_cast<int32_t>(gdata[i].bFinalSailDo));
                 }
             }
@@ -509,7 +511,7 @@ void SAIL::Execute(uint32_t Delta_Time)
 
             if (gdata[i].bYesShip)
             {
-                auto *pVai = static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(gdata[i].shipEI));
+                auto *pVai = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[i].shipEI));
                 if (pVai != nullptr && pVai->GetACharacter() != nullptr)
                 {
                     ATTRIBUTES *pA = pVai->GetACharacter()->GetAttributeClass("Ship");
@@ -538,8 +540,8 @@ void SAIL::Realize(uint32_t Delta_Time)
         RenderService->SetMaterial(mat);
         RenderService->TextureSet(2, texl);
         CMatrix matv, matp, matc;
-        RenderService->GetTransform(D3DTS_VIEW, (D3DXMATRIX *)&matv);
-        RenderService->GetTransform(D3DTS_PROJECTION, (D3DXMATRIX *)&matp);
+        RenderService->GetTransform(D3DTS_VIEW, matv);
+        RenderService->GetTransform(D3DTS_PROJECTION, matp);
         matc = matv * matp;
         if constexpr (false) // Delta_Time==0 )
         {
@@ -555,7 +557,7 @@ void SAIL::Realize(uint32_t Delta_Time)
                     if (slist[i]->bFreeSail)
                         continue;
                     // if(gdata[slist[i]->HostNum].bDeleted) continue;
-                    RenderService->SetTransform(D3DTS_WORLD, (D3DXMATRIX *)slist[i]->pMatWorld);
+                    RenderService->SetTransform(D3DTS_WORLD, *slist[i]->pMatWorld);
                     RenderService->TextureSet(0, slist[i]->surfaceTex);
                     if (slist[i]->m_bIsGerald)
                     {
@@ -594,7 +596,7 @@ void SAIL::Realize(uint32_t Delta_Time)
                 {
                     i = gdata[j].sailIdx[idx];
                     // if(gdata[slist[i]->HostNum].bDeleted) continue;
-                    RenderService->SetTransform(D3DTS_WORLD, (D3DXMATRIX *)slist[i]->pMatWorld);
+                    RenderService->SetTransform(D3DTS_WORLD, *slist[i]->pMatWorld);
                     RenderService->TextureSet(0, slist[i]->surfaceTex);
                     if (slist[i]->m_bIsGerald)
                     {
@@ -616,9 +618,9 @@ void SAIL::Realize(uint32_t Delta_Time)
                     RenderService->UnLockIndexBuffer(sg.indxBuf);
                     if (gdata[j].bYesShip)
                     {
-                        static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(gdata[j].shipEI))
+                        static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[j].shipEI))
                             ->SetLightAndFog(true);
-                        static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(gdata[j].shipEI))->SetLights();
+                        static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[j].shipEI))->SetLights();
                     }
                     if (slist[i]->ss.nholeIndx != 0)
                     {
@@ -634,8 +636,8 @@ void SAIL::Realize(uint32_t Delta_Time)
                     }
                     if (gdata[j].bYesShip)
                     {
-                        static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(gdata[j].shipEI))->UnSetLights();
-                        static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(gdata[j].shipEI))
+                        static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[j].shipEI))->UnSetLights();
+                        static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[j].shipEI))
                             ->RestoreLightAndFog();
                     }
                 }
@@ -704,7 +706,7 @@ uint64_t SAIL::ProcessMessage(MESSAGE &message)
         }
 
         MODEL *mdl;
-        if ((mdl = static_cast<MODEL *>(EntityManager::GetEntityPointer(gdata[groupQuantity - 1].modelEI))) != nullptr)
+        if ((mdl = static_cast<MODEL *>(core.GetEntityPointer(gdata[groupQuantity - 1].modelEI))) != nullptr)
         {
             GEOS::INFO gi;
             GEOS::LABEL gl;
@@ -773,7 +775,7 @@ uint64_t SAIL::ProcessMessage(MESSAGE &message)
 
                 CVECTOR epos;
                 if (so->ss.turningSail && posNum != 0) // setting for turning sails only
-                    if (tmpEI = EntityManager::GetEntityId("rope"))
+                    if (tmpEI = core.GetEntityId("rope"))
                         if (so->sailtrope.rrs[0] == nullptr)
                         {
                             so->sailtrope.rrs[0] = new ROTATEROPEDSAIL;
@@ -792,7 +794,7 @@ uint64_t SAIL::ProcessMessage(MESSAGE &message)
                                 bpos = so->ss.hardPoints[1];
                                 break;
                             }
-                            static_cast<ROPE_BASE *>(EntityManager::GetEntityPointer(tmpEI))
+                            static_cast<ROPE_BASE *>(core.GetEntityPointer(tmpEI))
                                 ->GetEndPoint(&epos, so->sailtrope.rrs[0]->ropenum, gdata[so->HostNum].modelEI);
                             so->sailtrope.rrs[0]->r1 = sqrtf(~(*pos - bpos));
                             so->sailtrope.rrs[0]->r2 = sqrtf(~(*pos - epos));
@@ -826,7 +828,7 @@ uint64_t SAIL::ProcessMessage(MESSAGE &message)
                                 break;
                             }
                             so->sailtrope.rrs[1]->r1 = sqrtf(~(*pos - bpos));
-                            static_cast<ROPE_BASE *>(EntityManager::GetEntityPointer(tmpEI))
+                            static_cast<ROPE_BASE *>(core.GetEntityPointer(tmpEI))
                                 ->GetEndPoint(&epos, so->sailtrope.rrs[1]->ropenum, gdata[so->HostNum].modelEI);
                             so->sailtrope.rrs[1]->r2 = sqrtf(~(*pos - epos));
                             if (so->ss.eSailType != SAIL_TREANGLE)
@@ -1202,7 +1204,7 @@ void SAIL::SetAllSails(int groupNum)
         if (gdata[groupNum].bYesShip && !gdata[groupNum].bDeleted)
         {
             ATTRIBUTES *pACh =
-                static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(gdata[groupNum].shipEI))->GetACharacter();
+                static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[groupNum].shipEI))->GetACharacter();
             ATTRIBUTES *pA = nullptr;
             // start installing textures on the sails
             if (pACh != nullptr)
@@ -1567,7 +1569,7 @@ void SAIL::FirstRun()
         SetAllSails();
 
     entid_t ropeEI;
-    if (ropeEI = EntityManager::GetEntityId("rope"))
+    if (ropeEI = core.GetEntityId("rope"))
         // position calculation according to the position of the ropes
         for (sn = wFirstIndx; sn < sailQuantity; sn++)
         {
@@ -1579,7 +1581,7 @@ void SAIL::FirstRun()
                     {
                         const int tieNum = slist[sn]->sailtrope.rrs[i]->tiePoint;
                         CVECTOR endVect;
-                        static_cast<ROPE_BASE *>(EntityManager::GetEntityPointer(ropeEI))
+                        static_cast<ROPE_BASE *>(core.GetEntityPointer(ropeEI))
                             ->GetEndPoint(&endVect, slist[sn]->sailtrope.rrs[i]->ropenum,
                                           gdata[slist[sn]->HostNum].modelEI);
                         CVECTOR medVect;
@@ -1647,7 +1649,7 @@ float SAIL::Cannon_Trace(int32_t iBallOwner, const CVECTOR &src, const CVECTOR &
         {
             const CVECTOR damagePoint = src + (dst - src) * retVal;
             auto *pvai =
-                static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(gdata[slist[traceSail]->HostNum].shipEI));
+                static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[slist[traceSail]->HostNum].shipEI));
             ATTRIBUTES *pA = nullptr;
             if (pvai != nullptr)
                 pA = pvai->GetACharacter();
@@ -1759,7 +1761,7 @@ void SAIL::DoSailToNewHost(entid_t newModelEI, entid_t newHostEI, int grNum, NOD
     // remove the only sail together with the group
     {
         // write down the value of the state of the sails = 0 for the ship
-        auto *pVai = static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(gdata[oldg].shipEI));
+        auto *pVai = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[oldg].shipEI));
         if (pVai && pVai->GetACharacter())
         {
             ATTRIBUTES *pA = pVai->GetACharacter()->GetAttributeClass("Ship");
@@ -1957,9 +1959,9 @@ void SAIL::SetAddSails(int firstSail)
 void SAIL::DoNoRopeSailToNewHost(entid_t newModel, entid_t newHost, entid_t oldHost)
 {
     entid_t rope_id;
-    if (!(rope_id = EntityManager::GetEntityId("rope")))
+    if (!(rope_id = core.GetEntityId("rope")))
         return; // no ropes, no concert
-    auto *rb = static_cast<ROPE_BASE *>(EntityManager::GetEntityPointer(rope_id));
+    auto *rb = static_cast<ROPE_BASE *>(core.GetEntityPointer(rope_id));
     if (rb == nullptr)
         return;
 
@@ -1972,14 +1974,14 @@ void SAIL::DoNoRopeSailToNewHost(entid_t newModel, entid_t newHost, entid_t oldH
         return;
 
     // new root NODE
-    auto nmdl = static_cast<MODEL *>(EntityManager::GetEntityPointer(newModel));
+    auto nmdl = static_cast<MODEL *>(core.GetEntityPointer(newModel));
     if (nmdl == nullptr)
         return;
     NODE *nroot = nmdl->GetNode(0);
     if (nroot == nullptr)
         return;
 
-    auto *omdl = static_cast<MODEL *>(EntityManager::GetEntityPointer(gdata[ogn].modelEI));
+    auto *omdl = static_cast<MODEL *>(core.GetEntityPointer(gdata[ogn].modelEI));
     if (omdl == nullptr)
         return;
 
@@ -2110,10 +2112,10 @@ void SAIL::SetSailTextures(int32_t grNum, VDATA *pvd) const
     gdata[grNum].maxSP = pA->GetAttributeAsDword("MaxSP", gdata[grNum].maxSP);
 
     // main texture
-    char *pcNormalName = pA->GetAttribute("normalTex");
+    const char *pcNormalName = pA->GetAttribute("normalTex");
     // coat of arms of a texture
     auto *pGeraldTexture = (IDirect3DTexture9 *)pA->GetAttributeAsPointer("geraldTexPointer", 0);
-    char *pcGeraldName = pA->GetAttribute("geraldTex");
+    const char *pcGeraldName = pA->GetAttribute("geraldTex");
     //
     gdata[grNum].dwSailsColor = pA->GetAttributeAsDword("sailscolor", 0xFFFFFFFF);
 
@@ -2162,7 +2164,7 @@ int SAIL::FindGroupForCharacter(int chrIdx) const
     {
         if (gdata[gn].bDeleted || !gdata[gn].bYesShip)
             continue;
-        ATTRIBUTES *pA = static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(gdata[gn].shipEI))->GetACharacter();
+        ATTRIBUTES *pA = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[gn].shipEI))->GetACharacter();
         if (pA != nullptr)
             if (static_cast<int>(pA->GetAttributeAsDword("index", -1)) == chrIdx)
                 return gn;
@@ -2174,7 +2176,7 @@ int SAIL::GetCharacterForGroup(int grNum) const
 {
     ATTRIBUTES *pA = nullptr;
     if (gdata[grNum].bYesShip)
-        pA = static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(gdata[grNum].shipEI))->GetACharacter();
+        pA = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(gdata[grNum].shipEI))->GetACharacter();
     if (pA != nullptr)
         return static_cast<int>(pA->GetAttributeAsDword("index", -1));
     return -1;

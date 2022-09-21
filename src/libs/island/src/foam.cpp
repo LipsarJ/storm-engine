@@ -1,7 +1,9 @@
 #include "foam.h"
 #include "core.h"
-#include "inlines.h"
+#include "math_inlines.h"
 #include "math3d/plane.h"
+#include "dx9render.h"
+#include "math3d.h"
 
 CoastFoam::CoastFoam()
 {
@@ -53,7 +55,7 @@ bool CoastFoam::Init()
 
 void CoastFoam::Execute(uint32_t Delta_Time)
 {
-    bEditMode = (bCanEdit) ? LOWORD(core.Controls->GetDebugKeyState(VK_NUMLOCK)) != 0 : false;
+    bEditMode = (bCanEdit) ? (core.Controls->GetDebugKeyState(VK_NUMLOCK) < 0) : false;
     auto fDeltaTime = static_cast<float>(Delta_Time) * 0.001f;
 }
 
@@ -86,7 +88,7 @@ void CoastFoam::Realize(uint32_t Delta_Time)
 
     if (pSea == nullptr)
     {
-        pSea = static_cast<SEA_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("sea")));
+        pSea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
         if (pSea == nullptr)
             return;
     }
@@ -769,7 +771,7 @@ void CoastFoam::Save()
         return;
 
     char cKey[128], cSection[128], cTemp[1024];
-    const auto sID = std::string("resource\\foam\\locations\\") + AttributesPointer->GetAttribute("id") + ".ini";
+    const auto sID = std::string("resource\\foam\\locations\\") + to_string(AttributesPointer->GetAttribute("id")) + ".ini";
     fio->_DeleteFile(sID.c_str());
 
     auto pI = fio->CreateIniFile(sID.c_str(), false);
@@ -815,7 +817,9 @@ void CoastFoam::Save()
             pI->WriteString(cSection, cKey, cTemp);
         }
     }
+#ifdef _WIN32 // FIX_LINUX _flushall
     _flushall();
+#endif
 }
 
 void CoastFoam::clear()
@@ -832,7 +836,7 @@ void CoastFoam::Load()
 {
     char cSection[256], cKey[256], cTemp[1024];
 
-    const auto sID = std::string("resource\\foam\\locations\\") + AttributesPointer->GetAttribute("id") + ".ini";
+    const auto sID = std::string("resource\\foam\\locations\\") + to_string(AttributesPointer->GetAttribute("id")) + ".ini";
     auto pI = fio->OpenIniFile(sID.c_str());
     if (!pI)
         return;

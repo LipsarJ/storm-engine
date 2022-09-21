@@ -14,6 +14,7 @@
 
 #include "animation_imp.h"
 #include "an_file.h"
+#include "string_compare.hpp"
 #include "v_file_service.h"
 
 CREATE_SERVICE(AnimationServiceImp)
@@ -135,7 +136,7 @@ Animation *AnimationServiceImp::CreateAnimation(const char *animationName)
     for (i = 0; i < ainfo.size(); i++)
         if (ainfo[i])
         {
-            if (ainfo[i][0] == animationName)
+            if (*ainfo[i] == animationName)
                 break;
         }
     if (i == ainfo.size())
@@ -571,7 +572,7 @@ bool AnimationServiceImp::LoadAN(const char *fname, AnimationInfo *info)
         delete[] vrt;
 
         // Angles
-        auto *ang = new D3DXQUATERNION[header.nFrames];
+        auto *ang = new Quaternion[header.nFrames];
         for (int32_t i = 0; i < header.nJoints; i++)
         {
             if (!fio->_ReadFile(fileS, ang, header.nFrames * sizeof(*ang)))

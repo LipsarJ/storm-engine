@@ -1,4 +1,6 @@
 #include "model_realizer.h"
+
+#include "core.h"
 #include "c_vector4.h"
 #include "lights.h"
 
@@ -39,7 +41,7 @@ void LocModelRealizer::Realize(uint32_t delta_time) const
 {
     if (!bShow)
         return;
-    auto *pE = EntityManager::GetEntityPointer(eid_model);
+    auto *pE = core.GetEntityPointer(eid_model);
     if (pE)
     {
         BOOL bLight0Enable;

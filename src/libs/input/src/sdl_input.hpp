@@ -4,6 +4,8 @@
 #include <SDL2/SDL.h>
 #include <map>
 
+#include "platform/platform.hpp"
+
 namespace storm
 {
 class SDLInput : public Input
@@ -15,6 +17,7 @@ class SDLInput : public Input
     int Subscribe(const EventHandler &handler) override;
     void Unsubscribe(int id) override;
 
+    bool KeyboardModState(const KeyboardKey &key) const override;
     bool KeyboardKeyState(const KeyboardKey &key) const override;
     bool KeyboardSDLKeyState(const SDL_Scancode &key) const override;
     bool MouseKeyState(const MouseKey &key) const override;

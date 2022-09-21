@@ -2,7 +2,7 @@
 #include "../utils.h"
 #include "../image/img_render.h"
 #include "core.h"
-#include "v_module_api.h"
+#include "vma.hpp"
 
 #define BI_MOUSECURSOR_ICON_ORDER 35000
 
@@ -66,7 +66,7 @@ void MousePointer::InitMouseCursors()
             {
                 m_aCursors[i].offset.x = pA->GetAttributeAsDword("xoffset", 0);
                 m_aCursors[i].offset.y = pA->GetAttributeAsDword("yoffset", 0);
-                m_aCursors[i].texture = pA->GetAttribute("texture");
+                m_aCursors[i].texture = to_string(pA->GetAttribute("texture"));
                 FULLRECT(m_aCursors[i].uv);
                 BIUtils::ReadRectFromAttr(pA, "uv", m_aCursors[i].uv, m_aCursors[i].uv);
             }

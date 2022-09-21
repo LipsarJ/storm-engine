@@ -2,6 +2,7 @@
 #include "../bi_defines.h"
 #include "entity.h"
 #include "core.h"
+#include "math_inlines.h"
 #include "message.h"
 #include "shared/battle_interface/msg_control.h"
 #include "ship_base.h"
@@ -90,7 +91,7 @@ void SHIPPOINTER::Realize(uint32_t delta_time) const
         return;
 
     CMatrix matw;
-    rs->SetTransform(D3DTS_WORLD, (D3DXMATRIX *)&matw);
+    rs->SetTransform(D3DTS_WORLD, matw);
 
     if (m_bFriend)
         rs->TextureSet(0, m_idFriendTex);
@@ -167,10 +168,10 @@ VAI_OBJBASE *SHIPPOINTER::FindShipByChrIndex(int32_t chrIdx) const
     if (chrIdx == -1)
         return nullptr;
 
-    const auto &entities = EntityManager::GetEntityIdVector("ship");
+    auto &&entities = core.GetEntityIds("ship");
     for (auto ship : entities)
     {
-        auto ps = static_cast<VAI_OBJBASE *>(EntityManager::GetEntityPointer(ship));
+        auto ps = static_cast<VAI_OBJBASE *>(core.GetEntityPointer(ship));
         if (ps != nullptr && ps->GetACharacter() != nullptr)
         {
             if (static_cast<int32_t>(ps->GetACharacter()->GetAttributeAsDword("index", -2)) == chrIdx)
@@ -180,7 +181,7 @@ VAI_OBJBASE *SHIPPOINTER::FindShipByChrIndex(int32_t chrIdx) const
 
     /*if( NetFindClass(false,&ei,"netship") ) do
     {
-      VAI_OBJBASE * ps = (VAI_OBJBASE*)EntityManager::GetEntityPointer(ei);
+      VAI_OBJBASE * ps = (VAI_OBJBASE*)core.GetEntityPointer(ei);
       if(ps!= nullptr && ps->GetACharacter()!= nullptr)
       {
         if( (int32_t)ps->GetACharacter()->GetAttributeAsDword("id",-2) == chrIdx )

@@ -10,7 +10,7 @@
 
 #include "np_character.h"
 #include "characters_groups.h"
-#include "defines.h"
+#include "math_inlines.h"
 #include "shared/messages.h"
 
 //============================================================================================
@@ -88,7 +88,7 @@ NPCharacter::~NPCharacter()
 
 bool NPCharacter::PostInit()
 {
-    charactersGroups = EntityManager::GetEntityId("CharactersGroups");
+    charactersGroups = core.GetEntityId("CharactersGroups");
     float tmp;
     int32_t tmpBool;
     VDATA *vd;
@@ -281,7 +281,7 @@ void NPCharacter::Update(float dltTime)
         if (!id)
             id = "<none>";
         const char *fid = nullptr;
-        auto *chr = static_cast<Character *>(EntityManager::GetEntityPointer(task.target));
+        auto *chr = static_cast<Character *>(core.GetEntityPointer(task.target));
         if (chr)
         {
             if (chr->AttributesPointer)
@@ -320,10 +320,11 @@ void NPCharacter::Update(float dltTime)
                         location->Print(curPos + CVECTOR(0.0f, height, 0.0f), rad, line++, 1.0f, 0xffffff, 0.5f,
                                         "tmpl.%s(%s)", fid, id);
                 }
-                id = atr->GetThisAttr();
-                if (id)
+                if (atr->HasValue())
+                {
                     location->Print(curPos + CVECTOR(0.0f, height, 0.0f), rad, line++, 1.0f, 0xffffff, 0.5f, "tmpl(%s)",
-                                    id);
+                                    static_cast<const char*>(atr->GetThisAttr()));
+                }
             }
             atr = AttributesPointer->FindAClass(AttributesPointer, "chr_ai.type");
             if (atr)
@@ -336,17 +337,16 @@ void NPCharacter::Update(float dltTime)
                         location->Print(curPos + CVECTOR(0.0f, height, 0.0f), rad, line++, 1.0f, 0xffffff, 0.5f,
                                         "type.%s(%s)", fid, id);
                 }
-                id = atr->GetThisAttr();
-                if (id)
+                if (atr->HasValue())
                     location->Print(curPos + CVECTOR(0.0f, height, 0.0f), rad, line++, 1.0f, 0xffffff, 0.5f, "type(%s)",
-                                    id);
+                                    static_cast<const char*>(atr->GetThisAttr()));
             }
             atr = AttributesPointer->FindAClass(AttributesPointer, "chr_ai.group");
             if (atr)
             {
-                id = atr->GetThisAttr();
-                if (!id)
-                    id = "";
+                id = "";
+                if (atr->HasValue())
+                    id = atr->GetThisAttr();
                 location->Print(curPos + CVECTOR(0.0f, height, 0.0f), rad, line++, 1.0f, 0xffffff, 0.5f,
                                 "group(\"%s\")", id);
             }
@@ -456,7 +456,7 @@ bool NPCharacter::SetNewTask(NPCTask tsk, MESSAGE &message)
         SetFightMode(false);
         SetRunMode(true);
         task.target = message.EntityID();
-        return (EntityManager::GetEntityPointer(task.target) != nullptr);
+        return (core.GetEntityPointer(task.target) != nullptr);
     case npct_dead:
         CmdStay();
         Dead();
@@ -468,7 +468,7 @@ bool NPCharacter::SetNewTask(NPCTask tsk, MESSAGE &message)
 bool NPCharacter::InitFollowChartacter(entid_t eid)
 {
     task.target = eid;
-    auto c = static_cast<Character *>(EntityManager::GetEntityPointer(eid));
+    auto c = static_cast<Character *>(core.GetEntityPointer(eid));
     if (c)
     {
         const char *id = c->AttributesPointer->GetAttribute("id");
@@ -494,7 +494,7 @@ bool NPCharacter::InitFightChartacter(entid_t eid)
 void NPCharacter::UpdateFollowCharacter(float dltTime)
 {
     // goal
-    auto *c = static_cast<NPCharacter *>(EntityManager::GetEntityPointer(task.target));
+    auto *c = static_cast<NPCharacter *>(core.GetEntityPointer(task.target));
     if (!c || c->deadName != nullptr || c->liveValue < 0)
     {
         const NPCTask tsk = task.task;
@@ -535,7 +535,7 @@ void NPCharacter::UpdateFollowCharacter(float dltTime)
 void NPCharacter::UpdateEscapeCharacter(float dltTime)
 {
     // The character we are running from
-    auto *c = static_cast<NPCharacter *>(EntityManager::GetEntityPointer(task.target));
+    auto *c = static_cast<NPCharacter *>(core.GetEntityPointer(task.target));
     if (!c || c->deadName != nullptr || c->liveValue < 0)
     {
         const NPCTask tsk = task.task;
@@ -564,7 +564,7 @@ void NPCharacter::UpdateFightCharacter(float dltTime)
 
     SetFightMode(true);
     // goal
-    auto *c = static_cast<NPCharacter *>(EntityManager::GetEntityPointer(task.target));
+    auto *c = static_cast<NPCharacter *>(core.GetEntityPointer(task.target));
     if (!c || c->deadName != nullptr || c->liveValue < 0 || c == this)
     {
         const NPCTask tsk = task.task;
@@ -847,7 +847,7 @@ void NPCharacter::DoFightActionAnalysisNone(float dltTime, NPCharacter *enemy)
     if (vd)
         vd->Get(isAdaptive);
     // Correcting taking into account the presence of groups
-    auto chrGroup = static_cast<CharactersGroups *>(EntityManager::GetEntityPointer(charactersGroups));
+    auto chrGroup = static_cast<CharactersGroups *>(core.GetEntityPointer(charactersGroups));
     if (!chrGroup)
         isAdaptive = false;
     // If we want to hit and the mode is not adaptive, then just hit

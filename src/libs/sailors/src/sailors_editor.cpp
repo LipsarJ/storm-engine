@@ -1,5 +1,6 @@
 #include "sailors_editor.h"
 
+#include "core.h"
 #include "shared/messages.h"
 #include "shared/sea_ai/script_defines.h"
 
@@ -19,29 +20,29 @@ SailorsEditor::SailorsEditor()
 
 SailorsEditor::~SailorsEditor()
 {
-    EntityManager::EraseEntity(sailors);
-    EntityManager::EraseEntity(shipID);
+    core.EraseEntity(sailors);
+    core.EraseEntity(shipID);
 };
 
 bool SailorsEditor::Init()
 {
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
 
-    sailors = EntityManager::CreateEntity("Sailors");
+    sailors = core.CreateEntity("Sailors");
 
-    EntityManager::SetLayerType(EXECUTE, EntityManager::Layer::Type::execute);
-    EntityManager::AddToLayer(EXECUTE, GetId(), 0);
+    core.SetLayerType(EXECUTE, layer_type_t::execute);
+    core.AddToLayer(EXECUTE, GetId(), 0);
 
-    EntityManager::SetLayerType(EDITOR_REALIZE, EntityManager::Layer::Type::realize);
-    EntityManager::AddToLayer(EDITOR_REALIZE, GetId(), 100000);
+    core.SetLayerType(EDITOR_REALIZE, layer_type_t::realize);
+    core.AddToLayer(EDITOR_REALIZE, GetId(), 100000);
 
     LoadFromIni("SailorsEditor.ini");
 
-    shipID = EntityManager::CreateEntity("MODELR");
+    shipID = core.CreateEntity("MODELR");
     core.Send_Message(shipID, "ls", MSG_MODEL_LOAD_GEO, _shipName.c_str());
 
-    EntityManager::AddToLayer(EDITOR_REALIZE, shipID, 100000);
-    model = static_cast<MODEL *>(EntityManager::GetEntityPointer(shipID));
+    core.AddToLayer(EDITOR_REALIZE, shipID, 100000);
+    model = static_cast<MODEL *>(core.GetEntityPointer(shipID));
 
     model->mtx.BuildMatrix(CVECTOR(0.0f), CVECTOR(0.0f, 0.0f, 0.0f));
 
@@ -50,7 +51,7 @@ bool SailorsEditor::Init()
     ctrl = core.Controls->CreateControl("DeltaMouseV");
     core.Controls->MapControl(ctrl, 257);
 
-    menu.sailrs = static_cast<Sailors *>(EntityManager::GetEntityPointer(sailors));
+    menu.sailrs = static_cast<Sailors *>(core.GetEntityPointer(sailors));
 
     menu.sailrs->editorMode = true;
 
@@ -66,8 +67,12 @@ void SailorsEditor::Execute(uint32_t dltTime)
     SetCamera(dltTime);
     menu.OnKeyPress(menu.sailrs->shipWalk[0].sailorsPoints);
 
-    if (GetAsyncKeyState(VK_ESCAPE) < 0)
+    if (core.Controls->GetAsyncKeyState(VK_ESCAPE) < 0)
+#ifdef _WIN32 // TODO: restore sailors editor and move to tools folder
         ExitProcess(0);
+#else
+        exit(0);
+#endif
 };
 
 void SailorsEditor::Realize(uint32_t dltTime)
@@ -103,33 +108,33 @@ void SailorsEditor::SetCamera(uint32_t &dltTime)
     pos = mtx * cameraPos;
 
     float speed = 0;
-    if (GetAsyncKeyState(VK_LBUTTON) < 0)
+    if (core.Controls->GetAsyncKeyState(VK_LBUTTON) < 0)
         speed = -0.1f;
-    if (GetAsyncKeyState(VK_RBUTTON) < 0)
+    if (core.Controls->GetAsyncKeyState(VK_RBUTTON) < 0)
         speed = 0.1f;
 
     cameraPos.y += speed * (dltTime / 10.0f);
     rs->SetCamera(cameraTo + pos, cameraTo, CVECTOR(0.0f, 1.0f, 0.0f));
 
-    if (GetAsyncKeyState(0x57) < 0)
+    if (core.Controls->GetAsyncKeyState(0x57) < 0)
     {
         cameraTo.x -= sin(cameraAng.y) * dltTime / 50.0f;
         cameraTo.z -= cos(cameraAng.y) * dltTime / 50.0f;
     }
 
-    if (GetAsyncKeyState(0x53) < 0)
+    if (core.Controls->GetAsyncKeyState(0x53) < 0)
     {
         cameraTo.x += sin(cameraAng.y) * dltTime / 50.0f;
         cameraTo.z += cos(cameraAng.y) * dltTime / 50.0f;
     }
 
-    if (GetAsyncKeyState(0x41) < 0)
+    if (core.Controls->GetAsyncKeyState(0x41) < 0)
     {
         cameraTo.x += sin(cameraAng.y + PI / 2) * dltTime / 50.0f;
         cameraTo.z += cos(cameraAng.y + PI / 2) * dltTime / 50.0f;
     }
 
-    if (GetAsyncKeyState(0x44) < 0)
+    if (core.Controls->GetAsyncKeyState(0x44) < 0)
     {
         cameraTo.x -= sin(cameraAng.y + PI / 2) * dltTime / 50.0f;
         cameraTo.z -= cos(cameraAng.y + PI / 2) * dltTime / 50.0f;

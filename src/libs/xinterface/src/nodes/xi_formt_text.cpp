@@ -1,6 +1,7 @@
 #include "xi_formt_text.h"
 #include "../xinterface.h"
 #include "entity.h"
+#include "string_compare.hpp"
 #include "utf8.h"
 #include "xi_scroller.h"
 
@@ -351,13 +352,7 @@ void CXI_FORMATEDTEXT::ChangePosition(XYRECT &rNewPos)
 {
     m_rect = rNewPos;
 
-    m_nCompareWidth = m_rect.right - m_rect.left - m_leftOffset;
-    if (m_nAlignment == PR_ALIGN_CENTER)
-        m_nPrintLeftOffset = m_leftOffset + static_cast<int32_t>((m_rect.left + m_rect.right - m_leftOffset) * .5f);
-    else if (m_nAlignment == PR_ALIGN_RIGHT)
-        m_nPrintLeftOffset = m_rect.right - m_leftOffset;
-    else
-        m_nPrintLeftOffset = m_rect.left + m_leftOffset;
+    RefreshAlignment();
 
     m_rectCursorPosition.left = m_rect.left;
     m_rectCursorPosition.right = m_rect.right;
@@ -439,6 +434,17 @@ void CXI_FORMATEDTEXT::SaveParametersToIni()
     pIni->WriteString(m_nodeName, "position", pcWriteParam);
 }
 
+void CXI_FORMATEDTEXT::RefreshAlignment()
+{
+    m_nCompareWidth = m_rect.right - m_rect.left - m_leftOffset;
+    if (m_nAlignment == PR_ALIGN_CENTER)
+        m_nPrintLeftOffset = m_leftOffset + static_cast<int32_t>((m_rect.left + m_rect.right - m_leftOffset) * .5f);
+    else if (m_nAlignment == PR_ALIGN_RIGHT)
+        m_nPrintLeftOffset = m_rect.right - m_leftOffset;
+    else
+        m_nPrintLeftOffset = m_rect.left + m_leftOffset;
+}
+
 void CXI_FORMATEDTEXT::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, const char *name2)
 {
     char param[2048];
@@ -470,13 +476,7 @@ void CXI_FORMATEDTEXT::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, 
         m_nAlignment = PR_ALIGN_LEFT;
 
     m_leftOffset = GetIniLong(ini1, name1, ini2, name2, "leftoffset");
-    m_nCompareWidth = m_rect.right - m_rect.left - m_leftOffset;
-    if (m_nAlignment == PR_ALIGN_CENTER)
-        m_nPrintLeftOffset = m_leftOffset + static_cast<int32_t>((m_rect.left + m_rect.right - m_leftOffset) * .5f);
-    else if (m_nAlignment == PR_ALIGN_RIGHT)
-        m_nPrintLeftOffset = m_rect.right - m_leftOffset;
-    else
-        m_nPrintLeftOffset = m_rect.left + m_leftOffset;
+    RefreshAlignment();
 
     m_nUpRectOffset = GetIniLong(ini1, name1, ini2, name2, "upOffset");
 
@@ -1185,6 +1185,17 @@ uint32_t CXI_FORMATEDTEXT::MessageProc(int32_t msgcode, MESSAGE &message)
     case 13: // set frized
         m_bFrized = message.Long() != 0;
         break;
+
+    case 14: { // set alignment from scripts
+        const auto new_alignment = message.Long(); 
+        if (new_alignment < PR_ALIGN_LEFT || new_alignment > PR_ALIGN_CENTER)
+        {
+            return -1;
+        }
+        m_nAlignment = new_alignment;
+        RefreshAlignment();
+        break;
+    }
     }
 
     return 0;
@@ -1428,7 +1439,7 @@ void CXI_FORMATEDTEXT::SetSpecialStrings(ATTRIBUTES *pARoot)
         ATTRIBUTES *pA = pARoot->GetAttributeClass(i);
         if (pA == nullptr)
             continue;
-        char *tmpstr = pA->GetAttribute("str");
+        const char *tmpstr = pA->GetAttribute("str");
         if (tmpstr == nullptr)
             continue;
         const int pos = pA->GetAttributeAsDword("pos", -1);
@@ -1448,7 +1459,7 @@ void CXI_FORMATEDTEXT::ControlSyncronouseNodes()
 {
     for (int32_t n = 0; n < static_cast<int32_t>(m_asSyncNodes.size()); n++)
     {
-        CINODE *pNode = static_cast<XINTERFACE *>(EntityManager::GetEntityPointer(g_idInterface))
+        CINODE *pNode = static_cast<XINTERFACE *>(core.GetEntityPointer(g_idInterface))
                             ->FindNode(m_asSyncNodes[n].c_str(), nullptr);
         if (!pNode)
             continue;
@@ -1608,7 +1619,7 @@ void CXI_FORMATEDTEXT::ScrollerUpdate()
     if (!m_sScrollerName)
         return;
     CINODE *pNode =
-        static_cast<XINTERFACE *>(EntityManager::GetEntityPointer(g_idInterface))->FindNode(m_sScrollerName, nullptr);
+        static_cast<XINTERFACE *>(core.GetEntityPointer(g_idInterface))->FindNode(m_sScrollerName, nullptr);
     if (!pNode)
         return;
 

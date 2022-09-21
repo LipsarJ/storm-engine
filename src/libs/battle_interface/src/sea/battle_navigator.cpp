@@ -6,6 +6,7 @@
 #include "../utils.h"
 #include "entity.h"
 #include "island_base.h"
+#include "math_inlines.h"
 #include "shared/battle_interface/msg_control.h"
 #include "ship_base.h"
 #include "ships_list.h"
@@ -37,50 +38,7 @@ void BATTLE_NAVIGATOR::CalculateTextureRect(FRECT &texRect, int32_t num, int32_t
     texRect.bottom = 1.f / vq * (yNum + 1);
 }
 
-BATTLE_NAVIGATOR::BATTLE_NAVIGATOR()
-{
-    m_pOwnerEI = nullptr;
-    m_dwFireZoneColor = 0x20FF0050;
-    rs = nullptr;
-
-    m_fShipSpeedScale = 1.f;
-
-    m_pIslandTexture = nullptr;
-    m_fCurScale = m_fDefaultScale = 1.f;
-    m_bYesIsland = false;
-
-    // textures
-    m_idCompasTex = -1;
-    m_idSpeedTex = -1;
-    m_idCannonTex = -1;
-    m_idEmptyTex = -1;
-    m_idIslandTexture = -1;
-    m_idChargeTexture = -1;
-    m_idPowderTexture = -1;
-    m_idWindTex = -1;
-    m_idBestCourseTex = -1;
-    m_idWindTexture = -1;
-    m_idSailTexture = -1;
-
-    // buffers
-    m_idEmptyVBuf = -1;
-    m_idCourseVBuf = -1;
-    m_idMapVBuf = -1;
-    m_idFireZoneVBuf = -1;
-    m_idCannonVBuf = -1;
-    m_idSpeedVBuf = -1;
-    m_idCurChargeVBuf = -1;
-
-    m_idShipsVBuf = -1;
-    m_nvShips = 0;
-
-    m_speedFont = -1;
-    m_wb = nullptr;
-    m_pAWeather = nullptr;
-
-    m_curCharge = -1;
-    m_bNotEnoughBallFlag = false;
-}
+BATTLE_NAVIGATOR::BATTLE_NAVIGATOR() = default;
 
 BATTLE_NAVIGATOR::~BATTLE_NAVIGATOR()
 {
@@ -444,7 +402,7 @@ void BATTLE_NAVIGATOR::FillOneSideFireRange(BI_NOTEXTURE_VERTEX *pv, ATTRIBUTES 
 void BATTLE_NAVIGATOR::Init(VDX9RENDER *RenderService, Entity *pOwnerEI)
 {
     int i;
-    char *tmpstr;
+    const char *tmpstr;
 
     m_pOwnerEI = pOwnerEI;
     if (RenderService == nullptr)
@@ -1346,10 +1304,10 @@ void BATTLE_NAVIGATOR::SetIsland()
     float islSize = 0;
 
     MODEL *pM = nullptr;
-    auto *pIsl = static_cast<ISLAND_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("ISLAND")));
+    auto *pIsl = static_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("ISLAND")));
     if (pIsl != nullptr)
     {
-        pM = static_cast<MODEL *>(EntityManager::GetEntityPointer(pIsl->GetModelEID()));
+        pM = static_cast<MODEL *>(core.GetEntityPointer(pIsl->GetModelEID()));
     }
     if (pM != nullptr)
     {
@@ -1405,7 +1363,7 @@ void BATTLE_NAVIGATOR::SetIsland()
                         rs->GetTransform(D3DTS_VIEW, oldmatv);
                         rs->SetTransform(D3DTS_VIEW, matv);
                         rs->GetTransform(D3DTS_PROJECTION, &oldmatp);
-                        ZERO(matp);
+                        matp = {};
                         matp._11 = matp._22 = 2.f / islSize;
                         matp._33 = 1.f / islSize;
                         matp._44 = 1.f;
@@ -1541,7 +1499,7 @@ void BATTLE_NAVIGATOR::UpdateWindParam()
 {
     if (!m_wb && !m_pAWeather)
     {
-        m_wb = static_cast<WEATHER_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("weather")));
+        m_wb = static_cast<WEATHER_BASE *>(core.GetEntityPointer(core.GetEntityId("weather")));
         /*if( core.IsNetActive() && !m_wb && m_pOwnerEI ) {
           VDATA * pSVWeather = (VDATA*)core.GetScriptVariable((m_pOwnerEI->IsServer()) ? "NSWeather" : "NCWeather");
         Assert(pSVWeather); m_pAWeather = pSVWeather->GetAClass(); Assert(m_pAWeather);

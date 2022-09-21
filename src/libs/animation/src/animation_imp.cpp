@@ -11,6 +11,7 @@
 #include "animation_imp.h"
 #include "animation_service_imp.h"
 #include "core.h"
+#include "debug-trap.h"
 
 //============================================================================================
 
@@ -266,12 +267,14 @@ void AnimationImp::BuildAnimationMatrices()
             for (int32_t j = 0; j < nbones; j++)
             {
                 auto &bn = aniInfo->GetBone(j);
+                Matrix tmpMtx;
                 CMatrix inmtx;
-                D3DXQUATERNION qt0, qt1, qt;
+                Quaternion qt0, qt1, qt;
                 bn.BlendFrame(f0, ki0, qt0);
                 bn.BlendFrame(f1, ki1, qt1);
-                D3DXQuaternionSlerp(&qt, &qt0, &qt1, kBlend);
-                D3DXMatrixRotationQuaternion(inmtx, &qt);
+                qt.SLerp(qt0, qt1, kBlend);
+                qt.GetMatrix(tmpMtx);
+                inmtx = tmpMtx;
                 inmtx.Pos() = bn.pos0;
                 if (j == 0)
                 {
@@ -308,10 +311,12 @@ void AnimationImp::BuildAnimationMatrices()
             for (int32_t j = 0; j < nbones; j++)
             {
                 auto &bn = aniInfo->GetBone(j);
+                Matrix tmpMtx;
                 CMatrix inmtx;
-                D3DXQUATERNION qt;
+                Quaternion qt;
                 bn.BlendFrame(f, ki, qt);
-                D3DXMatrixRotationQuaternion(inmtx, &qt);
+                qt.GetMatrix(tmpMtx);
+                inmtx = tmpMtx;
                 inmtx.Pos() = bn.pos0;
                 if (j == 0)
                     inmtx.Pos() = bn.pos[f] + ki * (bn.pos[f + 1] - bn.pos[f]);
@@ -344,10 +349,12 @@ void AnimationImp::BuildAnimationMatrices()
             for (int32_t j = 0; j < nbones; j++)
             {
                 auto &bn = aniInfo->GetBone(j);
+                Matrix tmpMtx;
                 CMatrix inmtx;
-                D3DXQUATERNION qt;
+                Quaternion qt;
                 bn.BlendFrame(f, ki, qt);
-                D3DXMatrixRotationQuaternion(inmtx, &qt);
+                qt.GetMatrix(tmpMtx);
+                inmtx = tmpMtx;
                 inmtx.Pos() = bn.pos0;
                 if (j == 0)
                     inmtx.Pos() = bn.pos[f] + ki * (bn.pos[f + 1] - bn.pos[f]);
@@ -368,7 +375,7 @@ void AnimationImp::BuildAnimationMatrices()
         else
         {
             core.Trace("AnimationImp::BuildAnimationMatrices -> Not support mode");
-            __debugbreak();
+            psnip_trap();
             /*_asm int 3;*/
             //    float frame = 0.0f;
             //    for(int32_t j = 0; j < nbones; j++)
@@ -378,11 +385,13 @@ void AnimationImp::BuildAnimationMatrices()
     {
         auto &bn = aniInfo->GetBone(j);
         matrix[j] = CMatrix(bn.start) * CMatrix(bn.matrix);
+#ifdef _WIN32 // FIX_LINUX DirectXMath
         // inverse first column in advance
         matrix[j].matrix[0] = -matrix[j].matrix[0];
         matrix[j].matrix[4] = -matrix[j].matrix[4];
         matrix[j].matrix[8] = -matrix[j].matrix[8];
         matrix[j].matrix[12] = -matrix[j].matrix[12];
+#endif
     }
 }
 

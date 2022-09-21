@@ -1,5 +1,5 @@
 STORM_SETUP(
     TARGET_NAME location
     TYPE storm_module
-    DEPENDENCIES common util sound_service steam_api
+    DEPENDENCIES animation collide core geometry model renderer sea sound_service util
 )

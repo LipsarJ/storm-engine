@@ -1,5 +1,5 @@
 STORM_SETUP(
     TARGET_NAME sea_creatures
     TYPE storm_module
-    DEPENDENCIES common
+    DEPENDENCIES animation core geometry island renderer sea ship
 )

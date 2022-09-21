@@ -1,6 +1,6 @@
 #include "ai_balls.h"
 #include "ai_fort.h"
-#include "inlines.h"
+#include "math_inlines.h"
 #include "shared/messages.h"
 
 
@@ -110,7 +110,7 @@ void AIBalls::FireBallFromCamera()
 
 void AIBalls::AddBall(ATTRIBUTES *pABall)
 {
-    auto *const pBallName = pABall->GetAttribute("Type");
+    const char *pBallName = pABall->GetAttribute("Type");
     Assert(pBallName);
 
     uint32_t i;
@@ -143,12 +143,12 @@ void AIBalls::AddBall(ATTRIBUTES *pABall)
     pBall->fDirZ = sinf(fDir);
     pBall->pParticle = nullptr;
 
-    pBall->sBallEvent = pABall->GetAttribute("Event");
+    pBall->sBallEvent = to_string(pABall->GetAttribute("Event"));
     
     if (aBallTypes[i].sParticleName.size())
     {
         entid_t eidParticle;
-        if (eidParticle = EntityManager::GetEntityId("particles"))
+        if (eidParticle = core.GetEntityId("particles"))
         {
             pBall->pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
                 eidParticle, "lsffffffl", PS_CREATE_RIC, (char *)aBallTypes[i].sParticleName.c_str(), pBall->vPos.x,
@@ -163,12 +163,12 @@ void AIBalls::Execute(uint32_t Delta_Time)
     CVECTOR vSrc, vDst;
     entid_t EID;
 
-    if (!pIsland && (EID = EntityManager::GetEntityId("island")))
-        pIsland = static_cast<CANNON_TRACE_BASE *>(EntityManager::GetEntityPointer(EID));
-    if (!pSail && (EID = EntityManager::GetEntityId("sail")))
-        pSail = static_cast<CANNON_TRACE_BASE *>(EntityManager::GetEntityPointer(EID));
-    if (!pSea && (EID = EntityManager::GetEntityId("sea")))
-        pSea = static_cast<CANNON_TRACE_BASE *>(EntityManager::GetEntityPointer(EID));
+    if (!pIsland && (EID = core.GetEntityId("island")))
+        pIsland = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(EID));
+    if (!pSail && (EID = core.GetEntityId("sail")))
+        pSail = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(EID));
+    if (!pSea && (EID = core.GetEntityId("sea")))
+        pSea = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(EID));
 
     aBallRects.clear();
 
@@ -240,14 +240,16 @@ void AIBalls::Execute(uint32_t Delta_Time)
             // sail trace
             if (pSail)
                 pSail->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
-
-            const auto its = EntityManager::GetEntityIdIterators(SHIP_CANNON_TRACE);
-            for (auto it = its.first; it != its.second; ++it)
+            
+            auto &&entities = core.GetEntityIds(SHIP_CANNON_TRACE);
+            for (auto ent_id : entities)
             {
-                auto *pShip = static_cast<CANNON_TRACE_BASE *>(EntityManager::GetEntityPointer(it->second));
-                fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
-                if (fRes <= 1.0f)
-                    break;
+                if (auto *pShip = static_cast<CANNON_TRACE_BASE *>(core.GetEntityPointer(ent_id)))
+                {
+                    fRes = pShip->Cannon_Trace(pBall->iBallOwner, vSrc, vDst);
+                    if (fRes <= 1.0f)
+                        break;
+                }
             }
 
             // fort trace
@@ -364,7 +366,7 @@ uint32_t AIBalls::AttributeChanged(ATTRIBUTES *pAttributeChanged)
         fBallFlySoundDistance = AttributesPointer->GetAttributeAsFloat("BallFlySoundDistance");
         fBallFlySoundStereoMultiplier = AttributesPointer->GetAttributeAsFloat("BallFlySoundStereoMultiplyer");
         fDeltaTimeMultiplier = AttributesPointer->GetAttributeAsFloat("SpeedMultiply");
-        sTextureName = AttributesPointer->GetAttribute("Texture");
+        sTextureName = to_string(AttributesPointer->GetAttribute("Texture"));
         dwSubTexX = AttributesPointer->GetAttributeAsDword("SubTexX");
         dwSubTexY = AttributesPointer->GetAttributeAsDword("SubTexY");
 
@@ -390,7 +392,7 @@ uint32_t AIBalls::AttributeChanged(ATTRIBUTES *pAttributeChanged)
             ballType.fWeight = pAP->GetAttributeAsFloat("Weight");
 
             if (pAP->GetAttribute("Particle"))
-                ballType.sParticleName = pAP->GetAttribute("Particle");
+                ballType.sParticleName = to_string(pAP->GetAttribute("Particle"));
 
             aBallTypes.push_back(ballType);
 
@@ -491,7 +493,7 @@ void AIBalls::Load(CSaveLoad *pSL)
             if (pB.pParticle)
             {
                 pB.pParticle = nullptr;
-                if (auto eidParticle = EntityManager::GetEntityId("particles"))
+                if (auto eidParticle = core.GetEntityId("particles"))
                 {
                     pB.pParticle = (VPARTICLE_SYSTEM *)core.Send_Message(
                         eidParticle, "lsffffffl", PS_CREATE_RIC, (char *)aBallType.sParticleName.c_str(), pB.vPos.x,

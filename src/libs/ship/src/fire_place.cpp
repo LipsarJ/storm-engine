@@ -1,6 +1,6 @@
 #include "fire_place.h"
 #include "entity.h"
-#include "sd2_h/save_load.h"
+#include "save_load.h"
 #include "core.h"
 #include "shared/messages.h"
 #include "shared/sound.h"
@@ -24,7 +24,7 @@ FirePlace::~FirePlace()
 
 bool FirePlace::CreateParticle(const char *pParticleSmokeName, const char *pParticleFireName)
 {
-    if (const auto eidParticle = EntityManager::GetEntityId("particles"))
+    if (const auto eidParticle = core.GetEntityId("particles"))
     {
         const auto vPos = GetPos();
         pParticleSmoke = (VPARTICLE_SYSTEM *)core.Send_Message(
@@ -38,7 +38,7 @@ bool FirePlace::CreateParticle(const char *pParticleSmokeName, const char *pPart
 
 void FirePlace::DeleteParticle()
 {
-    if (const auto eidParticle = EntityManager::GetEntityId("particles"))
+    if (const auto eidParticle = core.GetEntityId("particles"))
     {
         if (pParticleSmoke && core.Send_Message(eidParticle, "lp", PS_VALIDATE_PARTICLE, pParticleSmoke))
         {

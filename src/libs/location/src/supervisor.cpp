@@ -13,6 +13,7 @@
 #include "entity.h"
 #include "locator_array.h"
 #include "core.h"
+#include "math_inlines.h"
 
 // ============================================================================================
 // Construction, destruction
@@ -32,8 +33,8 @@ Supervisor::~Supervisor()
     isDelete = true;
     for (size_t i = 0; i < character.size(); i++)
     {
-        character[i].c->AlreadySTORM_DELETE();
-        EntityManager::EraseEntity(character[i].c->GetId());
+        character[i].c->AlreadyDeleted();
+        core.EraseEntity(character[i].c->GetId());
     }
 }
 
@@ -41,7 +42,7 @@ Supervisor::~Supervisor()
 void Supervisor::AddCharacter(Character *ch)
 {
     Assert(ch);
-    character.emplace_back(ch, time);
+    character.emplace_back(CharacterEx{ch, time});
     colchr.resize(character.size() * character.size());
 }
 
@@ -71,6 +72,8 @@ void Supervisor::Update(float dltTime)
         character[i].c->isCollision = false;
     }
     // calculate the distances, and determine the interacting characters
+    constexpr float push_ang_step = PI / 64.0f;
+    float push_ang = 0.0f;
     int32_t chr = 0;
     size_t i;
     for (i = 0; i < character.size() - 1; i++)
@@ -112,52 +115,34 @@ void Supervisor::Update(float dltTime)
             r *= 0.5f;
             if (d >= r * r)
                 continue;
-            if (d)
+
+            if (d <= 0.25f)
             {
-                d = sqrtf(d);
-                d = (r - d) / d;
-                dx *= d;
-                dz *= d;
-                ci->isCollision = true;
-                cj->isCollision = true;
-                auto moveI = ci->IsMove();
-                if ((~ci->impulse) > 0.0001f && !moveI)
-                {
-                    moveI = ((ci->impulse.x * dx + ci->impulse.z * dz) < 0.0f);
-                }
-                auto moveJ = cj->IsMove();
-                if ((~cj->impulse) > 0.0001f && !moveJ)
-                {
-                    moveJ = ((cj->impulse.x * dx + cj->impulse.z * dz) > 0.0f);
-                }
-                if (ci->IsFight())
-                {
-                    if (moveI == moveJ)
-                    {
-                        ci->curPos.x += dx * 0.5f;
-                        ci->curPos.z += dz * 0.5f;
-                        cj->curPos.x -= dx * 0.5f;
-                        cj->curPos.z -= dz * 0.5f;
-                    }
-                    else
-                    {
-                        if (moveI)
-                        {
-                            ci->curPos.x += dx * 0.999f;
-                            ci->curPos.z += dz * 0.999f;
-                            cj->curPos.x -= dx * 0.001f;
-                            cj->curPos.z -= dz * 0.001f;
-                        }
-                        else
-                        {
-                            ci->curPos.x += dx * 0.001f;
-                            ci->curPos.z += dz * 0.001f;
-                            cj->curPos.x -= dx * 0.999f;
-                            cj->curPos.z -= dz * 0.999f;
-                        }
-                    }
-                }
-                else if (moveI == moveJ)
+                dx = 0.5f * cosf(push_ang);
+                dz = 0.5f * sinf(push_ang);
+                d = dx * dx + dz * dz;
+                push_ang += push_ang_step;
+            }
+
+            d = sqrtf(d);
+            d = (r - d) / d;
+            dx *= d;
+            dz *= d;
+            ci->isCollision = true;
+            cj->isCollision = true;
+            auto moveI = ci->IsMove();
+            if ((~ci->impulse) > 0.0001f && !moveI)
+            {
+                moveI = ((ci->impulse.x * dx + ci->impulse.z * dz) < 0.0f);
+            }
+            auto moveJ = cj->IsMove();
+            if ((~cj->impulse) > 0.0001f && !moveJ)
+            {
+                moveJ = ((cj->impulse.x * dx + cj->impulse.z * dz) > 0.0f);
+            }
+            if (ci->IsFight())
+            {
+                if (moveI == moveJ)
                 {
                     ci->curPos.x += dx * 0.5f;
                     ci->curPos.z += dz * 0.5f;
@@ -168,18 +153,42 @@ void Supervisor::Update(float dltTime)
                 {
                     if (moveI)
                     {
-                        ci->curPos.x += dx * 0.9f;
-                        ci->curPos.z += dz * 0.9f;
-                        cj->curPos.x -= dx * 0.1f;
-                        cj->curPos.z -= dz * 0.1f;
+                        ci->curPos.x += dx * 0.999f;
+                        ci->curPos.z += dz * 0.999f;
+                        cj->curPos.x -= dx * 0.001f;
+                        cj->curPos.z -= dz * 0.001f;
                     }
                     else
                     {
-                        ci->curPos.x += dx * 0.1f;
-                        ci->curPos.z += dz * 0.1f;
-                        cj->curPos.x -= dx * 0.9f;
-                        cj->curPos.z -= dz * 0.9f;
+                        ci->curPos.x += dx * 0.001f;
+                        ci->curPos.z += dz * 0.001f;
+                        cj->curPos.x -= dx * 0.999f;
+                        cj->curPos.z -= dz * 0.999f;
                     }
+                }
+            }
+            else if (moveI == moveJ)
+            {
+                ci->curPos.x += dx * 0.5f;
+                ci->curPos.z += dz * 0.5f;
+                cj->curPos.x -= dx * 0.5f;
+                cj->curPos.z -= dz * 0.5f;
+            }
+            else
+            {
+                if (moveI)
+                {
+                    ci->curPos.x += dx * 0.9f;
+                    ci->curPos.z += dz * 0.9f;
+                    cj->curPos.x -= dx * 0.1f;
+                    cj->curPos.z -= dz * 0.1f;
+                }
+                else
+                {
+                    ci->curPos.x += dx * 0.1f;
+                    ci->curPos.z += dz * 0.1f;
+                    cj->curPos.x -= dx * 0.9f;
+                    cj->curPos.z -= dz * 0.9f;
                 }
             }
         }
@@ -231,7 +240,7 @@ void Supervisor::PostUpdate(float dltTime)
                 break;
             const auto dlt = time - character[curUpdate].lastTime;
             character[curUpdate].lastTime = time;
-            if (EntityManager::GetEntityPointer(character[curUpdate].c->GetId()))
+            if (core.GetEntityPointer(character[curUpdate].c->GetId()))
             {
                 core.Event("CharacterUpdate", "if", character[curUpdate].c->GetId(), dlt);
             }
@@ -364,7 +373,7 @@ std::vector<Supervisor::FindCharacter> Supervisor::FindCharacters(Character *chr
                 continue;
         }
         // Add
-        found_characters.emplace_back(character[i].c, dx, dy, dz, d);
+        found_characters.emplace_back(FindCharacter{character[i].c, dx, dy, dz, d});
     }
     if (isSort)
     {

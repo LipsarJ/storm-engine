@@ -8,6 +8,8 @@ Comments:
 dynamic shadow cpp file
 ******************************************************************************/
 #include "shadow.h"
+
+#include "core.h"
 #include "shared/messages.h"
 
 CREATE_CLASS(Shadow)
@@ -48,7 +50,7 @@ bool Shadow::Init()
     if (col == nullptr)
         throw std::runtime_error("No service: COLLIDE");
 
-    EntityManager::AddToLayer(REALIZE, GetId(), 900);
+    core.AddToLayer(REALIZE, GetId(), 900);
 
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     if (!rs)
@@ -134,7 +136,7 @@ bool AddPoly(const CVECTOR *vr, int32_t nverts)
 //------------------------------------------------------------------------------------
 void Shadow::Realize(uint32_t Delta_Time)
 {
-    auto *obj = static_cast<MODEL *>(EntityManager::GetEntityPointer(entity));
+    auto *obj = static_cast<MODEL *>(core.GetEntityPointer(entity));
     if (!obj)
         return;
 
@@ -148,7 +150,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     pV = core.Event("EWhr_GetFogDensity");
     auto fogDensity = pV->GetFloat();
 
-    // MODEL *obj = (MODEL*)EntityManager::GetEntityPointer(entity);
+    // MODEL *obj = (MODEL*)core.GetEntityPointer(entity);
     auto *node = obj->GetNode(0);
     GEOS::INFO gi;
     node->geo->GetInfo(gi);
@@ -191,7 +193,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     rs->GetTransform(D3DTS_PROJECTION, visPoj);
     FindPlanes(visView, visPoj);
 
-    const auto its = EntityManager::GetEntityIdIterators(SHADOW);
+    const auto its = core.GetEntityIds(SHADOW);
 
     CVECTOR hdest = headPos + !(headPos - light_pos) * 100.0f;
     float ray = col->Trace(its, headPos, hdest, nullptr, 0);
@@ -242,7 +244,7 @@ void Shadow::Realize(uint32_t Delta_Time)
     shading = std::max(0.2f, std::max(minVal, std::min(shading, 1.0f)));
     shading *= (blendValue >> 24) / 255.0f;
 
-    // if(GetAsyncKeyState(0xc0)<0)
+    // if(core.Controls->GetAsyncKeyState(0xc0)<0)
     {
         float dist = sqrtf(~(cen - camPos));
         if (dist > farBlend) // too far

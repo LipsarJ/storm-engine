@@ -1,11 +1,11 @@
 #include "particles.h"
+
+#include "../particles.h"
 #include "core.h"
-#include "defines.h"
 #include "entity.h"
-#include "particles/i_particle_manager.h"
-#include "particles/i_particle_service.h"
-#include "particles/i_particle_system.h"
+#include "math_inlines.h"
 #include "p_system.h"
+#include "string_compare.hpp"
 #include "shared/messages.h"
 
 PARTICLES::PARTICLES()
@@ -24,8 +24,8 @@ PARTICLES::~PARTICLES()
 
 bool PARTICLES::Init()
 {
-    EntityManager::AddToLayer(REALIZE, GetId(), 0xfffff);
-    EntityManager::AddToLayer(EXECUTE, GetId(), 0);
+    core.AddToLayer(REALIZE, GetId(), 0xfffff);
+    core.AddToLayer(EXECUTE, GetId(), 0);
 
     pService = static_cast<IParticleService *>(core.GetService("ParticleService"));
     Assert(pService);
@@ -189,7 +189,7 @@ PARTICLE_SYSTEM *PARTICLES::CreateSystem(const char *pFileName, uint32_t LifeTim
     // pFullFileName = "resource\\particles\\";
     // pFullFileName += pFileName;
     // pFullFileName.AddExtention(".xps");
-    //__debugbreak(); //~!~
+    //psnip_trap(); //~!~
     auto path = std::filesystem::path() / "resource" / "particles" / pFileName;
     std::string pathStr = path.extension().string();
     if (!storm::iEquals(pathStr, ".xps"))

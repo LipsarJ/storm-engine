@@ -2,8 +2,10 @@
 
 #include "dx9render.h"
 #include "matrix.h"
-#include "v_module_api.h"
+#include "vma.hpp"
 //#include "iimage.h"
+
+#include <string_view>
 
 #define USED_CODES 0x2070 // end of https://unicode-table.com/en/blocks/general-punctuation/
 #define MAX_SYMBOLS 512
@@ -52,8 +54,8 @@ class FONT
     int32_t TextureID;
     uint32_t Color, oldColor;
     float fScale, fOldScale;
-    FLOAT_RECT Pos;
-    FONT_SYMBOL CharT[USED_CODES];
+    FLOAT_RECT Pos{};
+    FONT_SYMBOL CharT[USED_CODES]{};
     int32_t Height;
     int32_t Texture_XSize;
     int32_t Texture_YSize;
@@ -85,7 +87,9 @@ class FONT
     int32_t Printf(int32_t x, int32_t y, char *Text, ...);
     int32_t Print(int32_t x, int32_t y, char *Text);
     int32_t UpdateVertexBuffer(int32_t x, int32_t y, char *data_PTR, int utf8length);
+    [[deprecated("Pass string as string_view instead")]]
     int32_t GetStringWidth(const char *Text);
+    int32_t GetStringWidth(const std::string_view &Text);
 
     int32_t GetHeight()
     {

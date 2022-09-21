@@ -4,7 +4,6 @@
 
 #include "entity.h"
 #include "matrix.h"
-#include "defines.h"
 #include "rands.h"
 #include "v_file_service.h"
 #include <fmod_errors.h>
@@ -13,6 +12,7 @@
 #include "core.h"
 
 #include "debug_entity.h"
+#include "math_inlines.h"
 #include "math3d/color.h"
 
 CREATE_SERVICE(SoundService)
@@ -297,7 +297,7 @@ const char *SoundService::GetRandomName(tAlias *_alias) const
 
 int SoundService::GetAliasIndexByName(const char *szAliasName)
 {
-    const uint32_t dwSearchHash = TOREMOVE::HashNoCase(szAliasName);
+    const uint32_t dwSearchHash = MakeHashValue(szAliasName);
     for (size_t i = 0; i < Aliases.size(); i++)
     {
         if (Aliases[i].dwNameHash == dwSearchHash)
@@ -345,6 +345,7 @@ TSD_ID SoundService::SoundPlay(const char *_name, eSoundType _type, eVolumeType 
 
     std::string SoundName = "resource\\sounds\\";
     SoundName += FileName;
+    SoundName = fio->ConvertPathResource(SoundName.c_str());
 
     FMOD::Sound *sound = nullptr;
     auto SoundIdx = 0;
@@ -451,10 +452,12 @@ TSD_ID SoundService::SoundPlay(const char *_name, eSoundType _type, eVolumeType 
                                                                           _maxDistance * DISTANCEFACTOR));
 
         FMOD_VECTOR vVelocity = {0.0f, 0.0f, 0.0f};
-        FMOD_VECTOR vPosition;
-        vPosition.x = _startPosition->x;
-        vPosition.y = _startPosition->y;
-        vPosition.z = _startPosition->z;
+        FMOD_VECTOR vPosition{};
+        if (_startPosition != nullptr) {
+            vPosition.x = _startPosition->x;
+            vPosition.y = _startPosition->y;
+            vPosition.z = _startPosition->z;
+        }
         CHECKFMODERR(PlayingSounds[SoundIdx].channel->set3DAttributes(&vPosition, &vVelocity));
     }
 
@@ -1081,7 +1084,7 @@ void SoundService::AddAlias(INIFILE &_iniFile, char *_sectionName)
     Aliases.push_back(tAlias{});
     tAlias &alias = Aliases.back();
     alias.Name = _sectionName;
-    alias.dwNameHash = TOREMOVE::HashNoCase(alias.Name.c_str());
+    alias.dwNameHash = MakeHashValue(alias.Name.c_str());
     alias.fMaxDistance = _iniFile.GetFloat(_sectionName, "maxDistance", -1.0f);
     alias.fMinDistance = _iniFile.GetFloat(_sectionName, "minDistance", -1.0f);
     alias.fVolume = _iniFile.GetFloat(_sectionName, "volume", -1.0f);
@@ -1131,11 +1134,11 @@ void SoundService::InitAliases()
 
 void SoundService::CreateEntityIfNeed()
 {
-    auto Debugentid_t = EntityManager::GetEntityId("SoundVisualisationEntity");
+    auto Debugentid_t = core.GetEntityId("SoundVisualisationEntity");
     if (!Debugentid_t)
     {
-        Debugentid_t = EntityManager::CreateEntity("SoundVisualisationEntity");
-        auto *pDebugEntity = static_cast<SoundVisualisationEntity *>(EntityManager::GetEntityPointer(Debugentid_t));
+        Debugentid_t = core.CreateEntity("SoundVisualisationEntity");
+        auto *pDebugEntity = static_cast<SoundVisualisationEntity *>(core.GetEntityPointer(Debugentid_t));
         pDebugEntity->SetMasterSoundService(this);
         pDebugEntity->Wakeup();
     }
@@ -1292,7 +1295,7 @@ void SoundService::DebugDraw()
 
 int SoundService::GetFromCache(const char *szName, eSoundType _type)
 {
-    const uint32_t dwSearchHash = TOREMOVE::HashNoCase(szName);
+    const uint32_t dwSearchHash = MakeHashValue(szName);
 
     for (size_t i = 0; i < SoundCache.size(); i++)
     {
@@ -1624,7 +1627,7 @@ void SoundService::ProcessSoundSchemes()
 
 int SoundService::GetOGGPositionIndex(const char *szName)
 {
-    const uint32_t dwHash = TOREMOVE::HashNoCase(szName);
+    const uint32_t dwHash = MakeHashValue(szName);
 
     for (size_t i = 0; i < OGGPosition.size(); i++)
     {
@@ -1659,7 +1662,7 @@ void SoundService::SetOGGPosition(const char *szName, unsigned int pos)
     }
 
     PlayedOGG ogg;
-    ogg.dwHash = TOREMOVE::HashNoCase(szName);
+    ogg.dwHash = MakeHashValue(szName);
     ogg.Name = szName;
     ogg.position = pos;
 

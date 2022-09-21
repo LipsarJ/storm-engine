@@ -3,16 +3,25 @@
 #include "core.h"
 
 #include "entity.h"
-#include "inlines.h"
+#include "math_inlines.h"
 #include "s_import_func.h"
 #include "texture.h"
 #include "v_s_stack.h"
-#include "storm/fs.h"
+#include "fs.h"
+#include "debug-trap.h"
+#include "string_compare.hpp"
+
+#include <algorithm>
+#include <SDL_timer.h>
 
 #include <fmt/chrono.h>
 
+#ifdef _WIN32
 #include <DxErr.h>
 #include <corecrt_io.h>
+#else
+#include <unistd.h>
+#endif
 
 CREATE_SERVICE(DX9RENDER)
 
@@ -29,74 +38,62 @@ CREATE_SCRIPTLIBRIARY(DX9RENDER_SCRIPT_LIBRIARY)
 
 namespace
 {
-    constexpr auto kKeyTakeScreenshot = "TakeScreenshot";
+constexpr auto kKeyTakeScreenshot = "TakeScreenshot";
 
-    D3DXIMAGE_FILEFORMAT GetScreenshotFormat(const std::string &fmt)
+#ifdef _WIN32 // Screenshot
+D3DXIMAGE_FILEFORMAT GetScreenshotFormat(const std::string &fmt)
+{
+    if (fmt == "bmp")
     {
-        if (fmt == "bmp")
-        {
-            return D3DXIFF_BMP;
-        }
-        if (fmt == "jpg")
-        {
-            return D3DXIFF_JPG;
-        }
-        if (fmt == "tga")
-        {
-            return D3DXIFF_TGA;
-        }
-        if (fmt == "png")
-        {
-            return D3DXIFF_PNG;
-        }
-        if (fmt == "dds")
-        {
-            return D3DXIFF_DDS;
-        }
-        if (fmt == "ppm")
-        {
-            return D3DXIFF_PPM;
-        }
-        if (fmt == "dib")
-        {
-            return D3DXIFF_DIB;
-        }
-        if (fmt == "hdr")
-        {
-            return D3DXIFF_HDR;
-        }
-        if (fmt == "pfm") 
-        {
-            return D3DXIFF_PFM;
-        }
-
-        return D3DXIFF_FORCE_DWORD;
+        return D3DXIFF_BMP;
+    }
+    if (fmt == "jpg")
+    {
+        return D3DXIFF_JPG;
+    }
+    if (fmt == "tga")
+    {
+        return D3DXIFF_TGA;
+    }
+    if (fmt == "png")
+    {
+        return D3DXIFF_PNG;
+    }
+    if (fmt == "dds")
+    {
+        return D3DXIFF_DDS;
+    }
+    if (fmt == "ppm")
+    {
+        return D3DXIFF_PPM;
+    }
+    if (fmt == "dib")
+    {
+        return D3DXIFF_DIB;
+    }
+    if (fmt == "hdr")
+    {
+        return D3DXIFF_HDR;
+    }
+    if (fmt == "pfm")
+    {
+        return D3DXIFF_PFM;
     }
 
-    void InvokeEntitiesLostRender()
-    {
-        const auto its = EntityManager::GetEntityIdIterators();
-        for (auto it = its.first; it != its.second; ++it)
-        {
-            if (!it->deleted && it->ptr != nullptr)
-            {
-                it->ptr->ProcessStage(Entity::Stage::lost_render);
-            }
-        }
-    }
-
-    void InvokeEntitiesRestoreRender()
-    {
-        const auto its = EntityManager::GetEntityIdIterators();
-        for (auto it = its.first; it != its.second; ++it)
-        {
-            if (!it->deleted && it->ptr != nullptr)
-            {
-                it->ptr->ProcessStage(Entity::Stage::restore_render);
-            }
-        }
-    }
+    return D3DXIFF_FORCE_DWORD;
 }
+#endif
+
+void InvokeEntitiesLostRender()
+{
+    core.ForEachEntity([](entptr_t entity_ptr) { entity_ptr->ProcessStage(Entity::Stage::lost_render); });
+}
+void InvokeEntitiesRestoreRender()
+{
+    core.ForEachEntity([](entptr_t entity_ptr) { entity_ptr->ProcessStage(Entity::Stage::restore_render); });
+}
+
+} // namespace
 
 DX9RENDER *DX9RENDER::pRS = nullptr;
 
@@ -248,7 +245,6 @@ char sSplashText[] = {'\xbb', '\x9a', '\x89', '\x9a', '\x93', '\x90', '\x8f', '\
 #pragma warning(pop)
 char splashbuffer[256];
 
-#define TEXTURESDIR "resource\\textures\\%s.tx"
 #define VIDEODIR "Resource\\Videos\\%s"
 
 struct DX9SphVertex
@@ -376,7 +372,11 @@ inline bool ErrorHandler(HRESULT hr, const char *file, unsigned line, const char
 {
     if (hr != D3D_OK)
     {
+#ifdef _WIN32
         core.Trace("[%s:%s:%d] %s: %s (%s)", file, func, line, DXGetErrorStringA(hr), DXGetErrorDescriptionA(hr), expr);
+#else
+        core.Trace("[%s:%s:%d] (%s)", file, func, line, expr);
+#endif
         return true;
     }
 
@@ -426,14 +426,11 @@ DX9RENDER::DX9RENDER()
 
     bTrace = true;
     iSetupPath = 0;
-    ZERO(TexPaths);
 
     bDropVideoConveyor = false;
     pDropConveyorVBuffer = nullptr;
 
     aspectRatio = -1.0f;
-    PZERO(FontList, sizeof(FontList));
-    PZERO(Textures, sizeof(Textures));
 
     bMakeShoot = false;
     bShowFps = false;
@@ -462,10 +459,6 @@ DX9RENDER::DX9RENDER()
     progressFramesHeight = 64;
     progressFramesCountX = 8;
     progressFramesCountY = 8;
-
-    bVideoCapture = false;
-    bPreparedCapture = false;
-    iCaptureFrameIndex = 0;
 
     vViewRelationPos = CVECTOR(0.f, 0.f, 0.f);
     vWordRelationPos = -vViewRelationPos;
@@ -502,12 +495,14 @@ bool DX9RENDER::Init()
         screenshotExt = str;
         std::ranges::transform(screenshotExt, screenshotExt.begin(),
                                [](const unsigned char c) { return std::tolower(c); });
+#ifdef _WIN32 // Screenshot
         screenshotFormat = GetScreenshotFormat(str);
         if (screenshotFormat == D3DXIFF_FORCE_DWORD)
         {
             screenshotExt = "jpg";
             screenshotFormat = D3DXIFF_JPG;
         }
+#endif
 
         bShowFps = ini->GetInt(nullptr, "show_fps", 0) == 1;
         bShowExInfo = ini->GetInt(nullptr, "show_exinfo", 0) == 1;
@@ -549,7 +544,7 @@ bool DX9RENDER::Init()
         // new renderer settings
         vSyncEnabled = ini->GetInt(nullptr, "vsync", 0);
 
-        msaa = ini->GetInt(nullptr, "msaa", D3DMULTISAMPLE_16_SAMPLES);
+        msaa = ini->GetInt(nullptr, "msaa", D3DMULTISAMPLE_NONE);
         if (msaa != D3DMULTISAMPLE_NONE)
         {
             if (msaa < D3DMULTISAMPLE_2_SAMPLES || msaa > D3DMULTISAMPLE_16_SAMPLES)
@@ -561,10 +556,15 @@ bool DX9RENDER::Init()
         videoAdapterIndex = ini->GetInt(nullptr, "adapter", std::numeric_limits<int32_t>::max());
 
         // stencil_format = D3DFMT_D24S8;
-        if (!InitDevice(bWindow, static_cast<HWND>(core.GetAppHWND()), screen_size.x, screen_size.y))
+        if (!InitDevice(bWindow, static_cast<HWND>(core.GetWindow()->OSHandle()), screen_size.x, screen_size.y))
             return false;
 
+#ifdef _WIN32 // Effects
         RecompileEffects();
+#else
+        pTechnique = std::make_unique<CTechnique>(this);
+        pTechnique->DecodeFiles();
+#endif
 
         // get start ini file for fonts
         if (!ini->ReadString(nullptr, "startFontIniFile", str, sizeof(str) - 1, ""))
@@ -610,14 +610,6 @@ bool DX9RENDER::Init()
         if (progressFramesCountY > 64)
             progressFramesCountY = 64;
 
-        // videocapture section
-        fFixedFPS = ini->GetFloat("VideoCapture", "FPS", 25);
-        if (fFixedFPS == 0.0f)
-            fFixedFPS = 25.0f;
-        const int32_t iCapBuffers = ini->GetInt("VideoCapture", "Buffers", 0);
-        for (int32_t i = 0; i < iCapBuffers; i++)
-            aCaptureBuffers.push_back(new char[sizeof(uint32_t) * screen_size.x * screen_size.y]);
-
         CreateSphere();
         auto *pScriptRender = static_cast<VDATA *>(core.GetScriptVariable("Render"));
         ATTRIBUTES *pARender = pScriptRender->GetAClass();
@@ -637,8 +629,6 @@ bool DX9RENDER::Init()
     {
         return false;
     }
-
-    dwCaptureBuffersReady = 0;
 
     uint16_t *pI = &qi[0];
     // setup ibuffer
@@ -699,18 +689,6 @@ DX9RENDER::~DX9RENDER()
 
     STORM_DELETE(DX9sphereVertex);
     ReleaseDevice();
-
-    if (bPreparedCapture)
-    {
-        STORM_DELETE(lpbi);
-        ReleaseDC(static_cast<HWND>(core.GetAppHWND()), hDesktopDC);
-        DeleteDC(hCaptureDC);
-        DeleteObject(hCaptureBitmap);
-    }
-    for (const auto &buffer : aCaptureBuffers)
-        delete buffer;
-
-    // aCaptureBuffers.DelAllWithPointers();
 }
 
 bool DX9RENDER::InitDevice(bool windowed, HWND _hwnd, int32_t width, int32_t height)
@@ -734,7 +712,7 @@ bool DX9RENDER::InitDevice(bool windowed, HWND _hwnd, int32_t width, int32_t hei
         return false;
     }
 
-    PZERO(&d3dpp, sizeof(d3dpp));
+    d3dpp = {};
     d3dpp.BackBufferWidth = width;
     d3dpp.BackBufferHeight = height;
     d3dpp.BackBufferFormat = screen_bpp;
@@ -829,7 +807,9 @@ bool DX9RENDER::InitDevice(bool windowed, HWND _hwnd, int32_t width, int32_t hei
             }
         }
     }
+#ifdef _WIN32 // Effects
     effects_.setDevice(d3d9);
+#endif
 
     // Create render targets for POST PROCESS effects
     d3d9->GetRenderTarget(0, &pOriginalScreenSurface);
@@ -925,8 +905,7 @@ bool DX9RENDER::InitDevice(bool windowed, HWND _hwnd, int32_t width, int32_t hei
 
     SetCamera(CVECTOR(0.0f, 0.0f, 0.0f), CVECTOR(0.0f, 0.0f, 0.0f), 1.0f);
 
-    D3DLIGHT9 l;
-    ZERO(l);
+    D3DLIGHT9 l{};
     l.Type = D3DLIGHT_POINT;
     l.Range = 100.0f;
     l.Attenuation0 = 1.0f;
@@ -943,8 +922,6 @@ bool DX9RENDER::InitDevice(bool windowed, HWND _hwnd, int32_t width, int32_t hei
     screen_size.y = height;
 
     m_fHeightDeformator = (float)(height * 4.0f) / (float)(width * 3.0f);
-
-    d3d9->GetGammaRamp(0, &DefaultRamp);
 
     // UNGUARD
     return true;
@@ -976,9 +953,6 @@ bool DX9RENDER::ReleaseDevice()
             Textures[t].ref = NULL;
             delete Textures[t].name;
         }
-
-    if (d3d9)
-        d3d9->SetGammaRamp(0, D3DSGR_NO_CALIBRATION, &DefaultRamp);
 
     if (d3d9 != nullptr && CHECKD3DERR(d3d9->Release()) == false)
         res = false;
@@ -1293,9 +1267,6 @@ bool DX9RENDER::DX9EndScene()
     if (bMakeShoot)
         MakeScreenShot();
 
-    if (bVideoCapture)
-        MakeCapture();
-
     const HRESULT hRes = d3d9->Present(nullptr, nullptr, nullptr, nullptr);
 
     if (hRes == D3DERR_DEVICELOST)
@@ -1303,12 +1274,14 @@ bool DX9RENDER::DX9EndScene()
         LostRender();
     }
 
+#ifdef _WIN32 // bSafeRendering
     if (bSafeRendering)
     {
         const HDC dc = GetDC(hwnd);
         SetPixel(dc, 0, 0, 0);
         ReleaseDC(hwnd, dc);
     }
+#endif
 
     return true;
 }
@@ -1342,31 +1315,14 @@ int32_t DX9RENDER::TextureCreate(const char *fname)
         return -1;
     }
 
-    // delete relative path "resource\textures\"
-    // std::string sTexName = fname;
-    // sTexName.GetRelativePath("resource\\textures\\");
-    // sTexName = sTexName - std::string(".tx");
-    // ~!~
-    //__debugbreak();
-    // fs::path path = fs::path() / "resource" / "textures" / fname;
-
     if (fname == nullptr)
     {
         core.Trace("Can't create texture with null name");
         return -1L;
     }
 
-    std::filesystem::path path = fname;
-    std::string pathStr = path.extension().string();
-    if (storm::iEquals(pathStr, ".tx"))
-        path.replace_extension();
-    pathStr = path.string();
-    fname = pathStr.c_str(); //~!~ msvc still doesn't have working c_str for path
-
     if (!bLoadTextureEnabled)
         return -1;
-
-    size_t fname_len = strlen(fname);
 
     for (int32_t i = 3; i >= -1; i--)
     {
@@ -1396,15 +1352,9 @@ int32_t DX9RENDER::TextureCreate(const char *fname)
             strcpy_s(_fname, fname);
         }
 
-        if (strlen(_fname) > std::size(".tx") - 1)
-        {
-            if (storm::iEquals(&_fname[strlen(_fname) - 3], ".tx"))
-                _fname[strlen(_fname) - 3] = 0;
-        }
+        std::ranges::for_each(_fname, [](char &c) { c = std::toupper(c); });
 
-        _strupr(_fname);
-
-        const uint32_t hf = hash_string(_fname);
+        const uint32_t hf = MakeHashValue(_fname);
 
         int32_t t;
         for (t = 0; t < MAX_STEXTURES; t++)
@@ -1475,19 +1425,28 @@ bool DX9RENDER::TextureIncReference(int32_t texid)
 
 bool DX9RENDER::TextureLoad(int32_t t)
 {
+    using namespace std::literals;
+
     ProgressView();
     // Form the path to the texture
     char fn[_MAX_FNAME];
     Textures[t].dwSize = 0;
-    // sprintf_s(fn,"resource\\textures\\%s.tx",fname);
     if (Textures[t].name == nullptr)
     {
         return false;
     }
-    sprintf_s(fn, TEXTURESDIR, Textures[t].name);
+
+    auto lTexture = std::string(Textures[t].name);
+    std::transform(lTexture.begin(), lTexture.end(), lTexture.begin(), [](unsigned char c) { return std::tolower(c); });
+    auto has_resource_prefix = starts_with(lTexture, "resource\\textures\\");
+    auto has_tx_postfix = ends_with(lTexture, ".tx");
+
+    sprintf_s(fn, "%s%s%s", has_resource_prefix ? "" : "resource\\textures\\", Textures[t].name, has_tx_postfix ? "" : ".tx");
+
     for (int32_t s = 0, d = 0; fn[d]; s++)
     {
-        if (d > 0 && fn[d - 1] == '\\' && fn[s] == '\\')
+        if (d > 0 && (fn[d - 1] == PATH_SEP || fn[d - 1] == WRONG_PATH_SEP) &&
+            (fn[s] == PATH_SEP || fn[s] == WRONG_PATH_SEP))
         {
             continue;
         }
@@ -1811,6 +1770,7 @@ bool DX9RENDER::TextureLoad(int32_t t)
 
 bool DX9RENDER::TextureLoadUsingD3DX(const char* path, int32_t t)
 {
+#ifdef _WIN32 // TextureLoadUsingD3DX - used only for loading raw Targa
     // TODO: reimplement the whole thing in a tidy way
     IDirect3DTexture9 *pTex;
     if(CHECKD3DERR(D3DXCreateTextureFromFileA(d3d9, path, &pTex)))
@@ -1831,6 +1791,9 @@ bool DX9RENDER::TextureLoadUsingD3DX(const char* path, int32_t t)
     Textures[t].loaded = true;
 
     return true;
+#else
+    return false;
+#endif
 }
 
 IDirect3DBaseTexture9 *DX9RENDER::GetBaseTexture(int32_t iTexture)
@@ -2147,8 +2110,7 @@ bool DX9RENDER::SetPerspective(float perspective, float fAspectRatio)
     const float h = 1.0f / tanf(fov_vert * 0.5f);
     const float Q = far_plane / (far_plane - near_plane);
 
-    D3DXMATRIX mtx;
-    PZERO(&mtx, sizeof(mtx));
+    D3DMATRIX mtx{};
 
     mtx._11 = w;
     mtx._22 = h;
@@ -2348,7 +2310,7 @@ void DX9RENDER::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE dwPrimitiveType, uint32_
 }
 
 void DX9RENDER::DrawPrimitiveUP(D3DPRIMITIVETYPE dwPrimitiveType, uint32_t dwVertexBufferFormat, uint32_t dwNumPT,
-                                void *pVerts, uint32_t dwStride, const char *cBlockName)
+                                const void *pVerts, uint32_t dwStride, const char *cBlockName)
 {
     bool bDraw = true;
 
@@ -2575,12 +2537,12 @@ void DX9RENDER::LostRender()
         if (VertexBuffers[b].buff)
         {
             if (VertexBuffers[b].buff->Release() > 0)
-                __debugbreak();
+                psnip_trap();
         }
         if (IndexBuffers[b].buff)
         {
             if (IndexBuffers[b].buff->Release() > 0)
-                __debugbreak();
+                psnip_trap();
         }
     }
 
@@ -2662,8 +2624,7 @@ void DX9RENDER::RestoreRender()
     // set base texture and diffuse+specular lighting
     SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
     SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_ADDSIGNED);
-    D3DLIGHT9 l;
-    ZERO(l);
+    D3DLIGHT9 l{};
     l.Type = D3DLIGHT_POINT;
     l.Range = 100.0f;
     l.Attenuation0 = 1.0f;
@@ -2673,9 +2634,13 @@ void DX9RENDER::RestoreRender()
         CHECKD3DERR(d3d9->LightEnable(i, false));
     }
     SetCommonStates();
-    d3d9->GetGammaRamp(0, &DefaultRamp);
 
+#ifdef _WIN32 // Effects
     RecompileEffects();
+#else
+    pTechnique = std::make_unique<CTechnique>(this);
+    pTechnique->DecodeFiles();
+#endif
 
     InvokeEntitiesRestoreRender();
 
@@ -2684,6 +2649,7 @@ void DX9RENDER::RestoreRender()
 
 void DX9RENDER::RecompileEffects()
 {
+#ifdef _WIN32 // Effects
     effects_.release();
 
     std::filesystem::path cur_path = std::filesystem::current_path();
@@ -2695,6 +2661,7 @@ void DX9RENDER::RecompileEffects()
             effects_.compile(s.c_str());
         }
     std::filesystem::current_path(cur_path);
+#endif
 }
 
 bool DX9RENDER::ResetDevice()
@@ -2784,7 +2751,12 @@ void DX9RENDER::RunStart()
     if (core.Controls->GetDebugAsyncKeyState(VK_SHIFT) < 0 && core.Controls->GetDebugAsyncKeyState(VK_F11) < 0)
     {
         InvokeEntitiesLostRender();
+#ifdef _WIN32 // Effects
         RecompileEffects();
+#else
+        pTechnique = std::make_unique<CTechnique>(this);
+        pTechnique->DecodeFiles();
+#endif
         InvokeEntitiesRestoreRender();
     }
 
@@ -2862,6 +2834,15 @@ int32_t DX9RENDER::Print(int32_t nFontNum, uint32_t color, int32_t x, int32_t y,
 }
 
 int32_t DX9RENDER::StringWidth(const char *string, int32_t nFontNum, float fScale, int32_t scrWidth)
+{
+    if (string == nullptr)
+    {
+        return 0;
+    }
+    return StringWidth(std::string_view(string), nFontNum, fScale, scrWidth);
+}
+
+int32_t DX9RENDER::StringWidth(const std::string_view &string, int32_t nFontNum, float fScale, int32_t scrWidth)
 {
     if (nFontNum < 0 || nFontNum >= nFontQuantity)
         return 0;
@@ -2969,8 +2950,11 @@ int32_t DX9RENDER::LoadFont(const char *fontName)
         strncpy_s(sDup, fontName, sizeof(sDup) - 1);
         sDup[sizeof(sDup) - 1] = 0;
     }
-    fontName = _strupr(sDup);
-    const uint32_t hashVal = hash_string(fontName);
+
+    std::ranges::for_each(sDup, [](char &c) { c = std::toupper(c); });
+    fontName = sDup;
+
+    const uint32_t hashVal = MakeHashValue(fontName);
 
     int32_t i;
     for (i = 0; i < nFontQuantity; i++)
@@ -3020,8 +3004,9 @@ bool DX9RENDER::UnloadFont(const char *fontName)
         strncpy_s(sDup, fontName, sizeof(sDup) - 1);
         sDup[sizeof(sDup) - 1] = 0;
     }
-    fontName = _strupr(sDup);
-    const uint32_t hashVal = hash_string(fontName);
+    std::ranges::for_each(sDup, [](char &c) { c = std::toupper(c); });
+    fontName = sDup;
+    const uint32_t hashVal = MakeHashValue(fontName);
 
     for (int i = 0; i < nFontQuantity; i++)
         if (FontList[i].hash == hashVal && storm::iEquals(FontList[i].name, fontName))
@@ -3073,8 +3058,9 @@ bool DX9RENDER::SetCurFont(const char *fontName)
         strncpy_s(sDup, fontName, sizeof(sDup) - 1);
         sDup[sizeof(sDup) - 1] = 0;
     }
-    fontName = _strupr(sDup);
-    const uint32_t hashVal = hash_string(fontName);
+    std::ranges::for_each(sDup, [](char &c) { c = std::toupper(c); });
+    fontName = sDup;
+    const uint32_t hashVal = MakeHashValue(fontName);
 
     for (int i = 0; i < nFontQuantity; i++)
         if (FontList[i].hash == hashVal)
@@ -3309,7 +3295,9 @@ void DX9RENDER::MakeScreenShot()
         screenshot_path.replace_filename(screenshot_base_filename + "_" + std::to_string(i));
         screenshot_path.replace_extension(screenshotExt);
     }
+#ifdef _WIN32 // Screenshot
     D3DXSaveSurfaceToFile(screenshot_path.c_str(), screenshotFormat, surface, nullptr, nullptr);
+#endif
 
     surface->Release();
     renderTarget->Release();
@@ -3376,16 +3364,30 @@ void DX9RENDER::FindPlanes(IDirect3DDevice9 *d3dDevice)
     viewplane[3].D = (pos.x * viewplane[3].Nx + pos.y * viewplane[3].Ny + pos.z * viewplane[3].Nz);
 }
 
+#ifdef _WIN32 // Effects
 bool DX9RENDER::TechniqueExecuteStart(const char *cBlockName)
 {
     if (!cBlockName)
         return false;
     return effects_.begin(cBlockName);
 }
+#else
+bool DX9RENDER::TechniqueExecuteStart(const char *cBlockName)
+{
+    if (!cBlockName)
+        return false;
+    pTechnique->SetCurrentBlock(cBlockName, 0, nullptr);
+    return pTechnique->ExecutePassStart();
+}
+#endif
 
 bool DX9RENDER::TechniqueExecuteNext()
 {
+#ifdef _WIN32 // Effects
     return effects_.next();
+#else
+    return pTechnique->ExecutePassNext();
+#endif
 }
 
 void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlockName, uint32_t dwSubTexturesX,
@@ -3396,8 +3398,9 @@ void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlock
 
     bool bDraw = true;
 
-    static CMatrix camMtx, IMatrix;
+    static CMatrix camMtx, oldWorldMatrix, IMatrix;
     d3d9->GetTransform(D3DTS_VIEW, camMtx);
+    d3d9->GetTransform(D3DTS_WORLD, oldWorldMatrix);
 
     fScaleY *= GetHeightDeformator();
 
@@ -3504,6 +3507,7 @@ void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlock
     }
 
     d3d9->SetTransform(D3DTS_VIEW, camMtx);
+    d3d9->SetTransform(D3DTS_WORLD, oldWorldMatrix);
 }
 
 void DX9RENDER::DrawSprites(RS_SPRITE *pRSS, uint32_t dwSpritesNum, const char *cBlockName)
@@ -3620,16 +3624,9 @@ HRESULT DX9RENDER::Release(IUnknown *pObject)
 {
     if (pObject)
     {
-        if (*(void **)pObject == nullptr)
-        {
-            __debugbreak();
-        }
-        else
-        {
-            const auto result = pObject->Release();
-            pObject = nullptr;
-            return result;
-        }
+        const auto result = pObject->Release();
+        pObject = nullptr;
+        return result;
     }
 
     return D3D_OK;
@@ -3740,6 +3737,24 @@ HRESULT DX9RENDER::CreatePixelShader(CONST uint32_t *pFunction, IDirect3DPixelSh
     return CHECKD3DERR(d3d9->CreatePixelShader((const DWORD *)pFunction, ppShader));
 }
 
+HRESULT DX9RENDER::DeleteVertexShader(IDirect3DVertexShader9 *pShader)
+{
+    if (pShader)
+    {
+        return pShader->Release();
+    }
+    return D3D_OK;
+}
+
+HRESULT DX9RENDER::DeletePixelShader(IDirect3DPixelShader9 *pShader)
+{
+    if (pShader)
+    {
+        return pShader->Release();
+    }
+    return D3D_OK;
+}
+
 HRESULT DX9RENDER::GetVertexShader(IDirect3DVertexShader9 **ppShader)
 {
     return CHECKD3DERR(d3d9->GetVertexShader(ppShader));
@@ -3750,10 +3765,12 @@ HRESULT DX9RENDER::GetPixelShader(IDirect3DPixelShader9 **ppShader)
     return CHECKD3DERR(d3d9->GetPixelShader(ppShader));
 }
 
+#ifdef _WIN32 // Effects
 ID3DXEffect *DX9RENDER::GetEffectPointer(const char *techniqueName)
 {
     return effects_.getEffectPointer(techniqueName);
 }
+#endif
 
 HRESULT DX9RENDER::SetTexture(uint32_t Stage, IDirect3DBaseTexture9 *pTexture)
 {
@@ -3801,8 +3818,7 @@ HRESULT DX9RENDER::UpdateSurface(IDirect3DSurface9 *pSourceSurface, CONST RECT *
                                  IDirect3DSurface9 *pDestinationSurface, CONST POINT *pDestPointsArray)
 {
     return CHECKD3DERR(D3DXLoadSurfaceFromSurface(pDestinationSurface, nullptr, nullptr, pSourceSurface, nullptr,
-                                                 nullptr,
-                                      D3DX_DEFAULT, 0));
+                                                  nullptr, D3DX_DEFAULT, 0));
     //return CHECKD3DERR(d3d9->UpdateSurface(pSourceSurface, pSourceRectsArray, pDestinationSurface, pDestPointsArray));
 }
 
@@ -3888,12 +3904,12 @@ CVideoTexture *DX9RENDER::GetVideoTexture(const char *sVideoName)
     VideoTextureEntity *pVTLcur = pVTL;
 
     // check already loaded
-    const uint32_t newHash = hash_string(sVideoName);
+    const uint32_t newHash = MakeHashValue(sVideoName);
     while (pVTLcur != nullptr)
     {
         if (pVTLcur->hash == newHash && storm::iEquals(pVTLcur->name, sVideoName))
         {
-            if (EntityManager::GetEntityPointer(pVTLcur->videoTexture_id))
+            if (core.GetEntityPointer(pVTLcur->videoTexture_id))
             {
                 pVTLcur->ref++;
                 return pVTLcur->VideoTexture;
@@ -3919,15 +3935,15 @@ CVideoTexture *DX9RENDER::GetVideoTexture(const char *sVideoName)
     if ((pVTLcur->name = new char[len]) == nullptr)
         throw std::runtime_error("memory allocate error");
     strcpy_s(pVTLcur->name, len, sVideoName);
-    const entid_t ei = EntityManager::CreateEntity("TextureSequence");
-    pVTLcur->VideoTexture = static_cast<CVideoTexture *>(EntityManager::GetEntityPointer(ei));
+    const entid_t ei = core.CreateEntity("TextureSequence");
+    pVTLcur->VideoTexture = static_cast<CVideoTexture *>(core.GetEntityPointer(ei));
     if (pVTLcur->VideoTexture != nullptr)
     {
         pVTLcur->videoTexture_id = ei;
         if (pVTLcur->VideoTexture->Initialize(this, sVideoName, true) == nullptr)
         {
             delete pVTLcur;
-            EntityManager::EraseEntity(ei);
+            core.EraseEntity(ei);
         }
         else
         {
@@ -3938,7 +3954,7 @@ CVideoTexture *DX9RENDER::GetVideoTexture(const char *sVideoName)
     else
     {
         delete pVTLcur;
-        EntityManager::EraseEntity(ei);
+        core.EraseEntity(ei);
     }
 
     return retVal;
@@ -3961,7 +3977,7 @@ void DX9RENDER::ReleaseVideoTexture(CVideoTexture *pVTexture)
                     pVTL = cur->next;
                 else
                     prev->next = cur->next;
-                EntityManager::EraseEntity(cur->videoTexture_id);
+                core.EraseEntity(cur->videoTexture_id);
                 delete cur->name;
                 delete cur;
                 break;
@@ -3975,7 +3991,7 @@ void DX9RENDER::PlayToTexture()
     VideoTextureEntity *cur = pVTL;
     while (cur != nullptr)
     {
-        if (EntityManager::GetEntityPointer(pVTL->videoTexture_id))
+        if (core.GetEntityPointer(pVTL->videoTexture_id))
         {
             cur->VideoTexture->FrameUpdate();
             cur = cur->next;
@@ -4192,7 +4208,7 @@ void DX9RENDER::StartProgressView()
         progressTipsTexture = TextureCreate(progressTipsImage);
         isInPViewProcess = false;
     }
-    progressUpdateTime = GetTickCount() - 1000;
+    progressUpdateTime = SDL_GetTicks() - 1000;
 }
 
 void DX9RENDER::ProgressView()
@@ -4203,7 +4219,7 @@ void DX9RENDER::ProgressView()
     if (isInPViewProcess)
         return;
     // Analyzing time
-    const uint32_t time = GetTickCount();
+    const uint32_t time = SDL_GetTicks();
     if (abs(static_cast<int32_t>(progressUpdateTime - time)) < 50)
         return;
     progressUpdateTime = time;
@@ -4374,21 +4390,15 @@ void DX9RENDER::EndProgressView()
 
 void DX9RENDER::SetColorParameters(float fGamma, float fBrightness, float fContrast)
 {
-    D3DGAMMARAMP ramp;
-
+    uint16_t rgb[256];
     for (uint32_t i = 0; i < 256; i++)
     {
-        float fRamp =
-            fContrast * 255.0f * 256.0f * powf(static_cast<float>(i / 255.0f), 1.0f / fGamma) + fBrightness * 256.0f;
-        if (fRamp < 0.0f)
-            fRamp = 0.0f;
-        if (fRamp > 65535.0f)
-            fRamp = 65535.0f;
-        ramp.red[i] = static_cast<uint16_t>(fRamp);
-        ramp.green[i] = static_cast<uint16_t>(fRamp);
-        ramp.blue[i] = static_cast<uint16_t>(fRamp);
+        float fRamp = std::clamp(fContrast * 255.0f * 256.0f * powf(static_cast<float>(i / 255.0f), 1.0f / fGamma) +
+                                     fBrightness * 256.0f,
+                                 0.0f, 65535.0f);
+        rgb[i] = static_cast<uint16_t>(fRamp);
     }
-    d3d9->SetGammaRamp(0, D3DSGR_NO_CALIBRATION, &ramp);
+    core.GetWindow()->SetGamma(rgb, rgb, rgb);
 }
 
 void DX9RENDER::MakeDrawVector(RS_LINE *pLines, uint32_t dwNumSubLines, const CMatrix &mMatrix, CVECTOR vUp, CVECTOR v1,
@@ -4465,24 +4475,23 @@ void DX9RENDER::DrawSphere(const CVECTOR &vPos, float fRadius, uint32_t dwColor)
                     sizeof(DX9SphVertex), "DXSphere");
 }
 
+
+void DX9RENDER::DrawEllipsoid(const CVECTOR &vPos, float a, float b, float c, float ay, uint32_t dwColor)
+{
+    CMatrix trans, scale, rot;
+    trans.BuildPosition(vPos.x, vPos.y, vPos.z);
+    scale.BuildScale(a, b, c);
+    rot.BuildRotateY(ay);
+
+    SetTransform(D3DTS_WORLD, scale * rot * trans);
+    SetRenderState(D3DRS_TEXTUREFACTOR, dwColor);
+    DrawPrimitiveUP(D3DPT_TRIANGLELIST, D3DFVF_XYZ | D3DFVF_DIFFUSE, DX9sphereNumTrgs, DX9sphereVertex,
+                    sizeof(DX9SphVertex), "DXEllipsoid");
+}
+
 void DX9RENDER::SetLoadTextureEnable(bool bEnable)
 {
     bLoadTextureEnabled = bEnable;
-}
-
-IDirect3DBaseTexture9 *DX9RENDER::CreateTextureFromFileInMemory(const char *pFile, uint32_t dwSize)
-{
-    if (!pFile || !dwSize)
-        return nullptr;
-
-    IDirect3DTexture9 *pTexture = nullptr;
-    auto *pTga = (TGA_H *)pFile;
-    const D3DFORMAT d3dFormat = (pTga->bpp == 16) ? D3DFMT_DXT1 : D3DFMT_DXT3;
-    D3DXCreateTextureFromFileInMemoryEx(static_cast<LPDIRECT3DDEVICE9>(GetD3DDevice()), pFile, dwSize, D3DX_DEFAULT,
-                                        D3DX_DEFAULT, 1, 0, d3dFormat, D3DPOOL_MANAGED, D3DX_DEFAULT, D3DX_DEFAULT, 0,
-                                        nullptr, nullptr, &pTexture);
-
-    return pTexture;
 }
 
 IDirect3DVolumeTexture9 *DX9RENDER::CreateVolumeTexture(uint32_t Width, uint32_t Height, uint32_t Depth,
@@ -4569,3 +4578,31 @@ IDirect3DBaseTexture9 *DX9RENDER::GetTextureFromID(int32_t nTextureID)
         return nullptr;
     return Textures[nTextureID].d3dtex;
 }
+
+bool DX9RENDER::GetRenderTargetAsTexture(IDirect3DTexture9 **tex)
+{
+    Release(*tex);
+    IDirect3DSurface9 *renderTarget;
+    D3DSURFACE_DESC desc;
+
+    auto success = false;
+
+    if (GetRenderTarget(&renderTarget) == D3D_OK && renderTarget->GetDesc(&desc) == D3D_OK)
+    {
+        if (CreateTexture(desc.Width, desc.Height, 0, 0, desc.Format, D3DPOOL_DEFAULT, tex) == D3D_OK)
+        {
+            IDirect3DSurface9 *pTexSurface;
+            if ((*tex)->GetSurfaceLevel(0, &pTexSurface) == D3D_OK)
+            {
+                if (GetRenderTargetData(renderTarget, pTexSurface) == D3D_OK)
+                {
+                    success = true;
+                }
+                pTexSurface->Release();
+            }
+        }
+    }
+
+    return success;
+}
+

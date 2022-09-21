@@ -1,9 +1,10 @@
 #include "utils.h"
 
 #include "core.h"
+#include "string_compare.hpp"
 
 #include "image/img_render.h"
-#include "v_module_api.h"
+#include "vma.hpp"
 
 // extern data
 entid_t BIUtils::idBattleInterface;
@@ -52,11 +53,11 @@ bool BIUtils::ReadStringFromAttr(ATTRIBUTES *pA, const char *name, char *buf, in
     return bRet;
 }
 
-char *BIUtils::GetStringFromAttr(ATTRIBUTES *pA, const char *name, const char *defVal)
+const char *BIUtils::GetStringFromAttr(ATTRIBUTES *pA, const char *name, const char *defVal)
 {
     if (pA == nullptr || name == nullptr)
         return (char *)defVal;
-    auto *const aVal = pA->GetAttribute(name);
+    const char* aVal = pA->GetAttribute(name);
     if (aVal == nullptr)
         return (char *)defVal;
     return aVal;
@@ -66,7 +67,7 @@ int32_t BIUtils::GetTextureFromAttr(VDX9RENDER *rs, ATTRIBUTES *pA, const char *
 {
     if (!rs || !pA)
         return -1;
-    auto *const sname = pA->GetAttribute(sAttrName);
+    const char *sname = pA->GetAttribute(sAttrName);
     if (!sname || sname[0] == 0)
         return -1;
     return rs->TextureCreate(sname);
@@ -77,7 +78,7 @@ bool BIUtils::ReadRectFromAttr(ATTRIBUTES *pA, const char *name, FRECT &rOut, FR
     rOut = rDefault;
     if (pA && name)
     {
-        auto *const pcStr = pA->GetAttribute(name);
+        const char *pcStr = pA->GetAttribute(name);
         if (pcStr)
         {
             sscanf(pcStr, "%f,%f,%f,%f", &rOut.left, &rOut.top, &rOut.right, &rOut.bottom);
@@ -92,7 +93,7 @@ bool BIUtils::ReadRectFromAttr(ATTRIBUTES *pA, const char *name, RECT &rOut, REC
     rOut = rDefault;
     if (pA && name)
     {
-        auto *const pcStr = pA->GetAttribute(name);
+        const char *pcStr = pA->GetAttribute(name);
         if (pcStr)
         {
             sscanf(pcStr, "%d,%d,%d,%d", &rOut.left, &rOut.top, &rOut.right, &rOut.bottom);
@@ -108,7 +109,7 @@ bool BIUtils::ReadPosFromAttr(ATTRIBUTES *pA, const char *name, float &fX, float
     fY = fYDef;
     if (pA && name)
     {
-        auto *const pcStr = pA->GetAttribute(name);
+        const char *pcStr = pA->GetAttribute(name);
         if (pcStr)
         {
             sscanf(pcStr, "%f,%f", &fX, &fY);
@@ -124,7 +125,7 @@ bool BIUtils::ReadPosFromAttr(ATTRIBUTES *pA, const char *name, int32_t &nX, int
     nY = nYDef;
     if (pA && name)
     {
-        char *pcStr = pA->GetAttribute(name);
+        const char *pcStr = pA->GetAttribute(name);
         if (pcStr)
         {
             sscanf(pcStr, "%d,%d", &nX, &nY);
@@ -138,7 +139,7 @@ int32_t BIUtils::GetAlignmentFromAttr(ATTRIBUTES *pA, const char *name, int32_t 
 {
     if (pA && name)
     {
-        char *pcTmp = pA->GetAttribute(name);
+        const char *pcTmp = pA->GetAttribute(name);
         if (pcTmp)
         {
             if (storm::iEquals(pcTmp, "left"))
@@ -156,7 +157,7 @@ int32_t BIUtils::GetFontIDFromAttr(ATTRIBUTES *pA, const char *name, VDX9RENDER 
 {
     if (rs && pA && name)
     {
-        char *pcTmp = pA->GetAttribute(name);
+        const char *pcTmp = pA->GetAttribute(name);
         if (pcTmp)
             return rs->LoadFont(pcTmp);
     }
@@ -351,7 +352,7 @@ void BITextInfo::Init(VDX9RENDER *rs, ATTRIBUTES *pA)
         pos.x = pos.y = 0;
     }
 
-    char *textAttr = pA->GetAttribute("text");
+    const char *textAttr = pA->GetAttribute("text");
     sText = textAttr ? textAttr : "";
 
     pARefresh = nullptr;
@@ -365,7 +366,7 @@ void BITextInfo::Print()
     {
         if (pARefresh)
         {
-            char *textAttr = pARefresh->GetAttribute("text");
+            const char *textAttr = pARefresh->GetAttribute("text");
             sText = textAttr ? textAttr : "";
         }
         if (!sText.empty())
@@ -436,7 +437,7 @@ void BILinesInfo::Init(VDX9RENDER *rs, ATTRIBUTES *pA)
 
 void BILinesInfo::Draw()
 {
-    pRS->DrawLines2D(&lines[0], lines.size() / 2, "Line");
+    pRS->DrawLines2D(std::data(lines), lines.size() / 2, "Line");
 }
 
 BIImagesInfo::BIImagesInfo()
@@ -477,8 +478,7 @@ void BIImagesInfo::Init(VDX9RENDER *rs, ATTRIBUTES *pA)
         FRECT rUV;
         FULLRECT(rUV);
         BIUtils::ReadRectFromAttr(pAImg, "uv", rUV, rUV);
-        RECT rPos;
-        ZERO(rPos);
+        RECT rPos{};
         BIUtils::ReadRectFromAttr(pAImg, "pos", rPos, rPos);
         IBIImage *pCurImg =
             pImgRender->CreateImage(BIType_square, pAImg->GetAttribute("texture"),

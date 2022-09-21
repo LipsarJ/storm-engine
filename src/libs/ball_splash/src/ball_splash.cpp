@@ -26,11 +26,11 @@ bool BALLSPLASH::Init()
 {
     // GUARD(BALLSPLASH::Init)
 
-    sea = static_cast<SEA_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("sea")));
+    sea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
 
     renderer = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
 
-    // EntityManager::CreateEntity(&arrowModel,"MODELR");
+    // core.CreateEntity(&arrowModel,"MODELR");
     // core.Send_Message(arrowModel,"ls",MSG_MODEL_LOAD_GEO, "fish01");
     InitializeSplashes();
 
@@ -115,7 +115,7 @@ void BALLSPLASH::Realize(uint32_t _dTime)
 
     RDTSC_E(ticks);
     /*
-    if ((GetKeyState('Z') & 0x8000) != 0)
+    if ((core.Controls->GetKeyState('Z') & 0x8000) != 0)
     {
       renderer->Print(0, 150, "splash: all = %d, count = %d", ticks/1000, TSplash::processCount);
       if (TSplash::processCount)

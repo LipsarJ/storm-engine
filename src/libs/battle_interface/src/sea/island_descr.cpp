@@ -3,6 +3,7 @@
 #include "core.h"
 
 #include "model.h"
+#include "string_compare.hpp"
 #include "shared/battle_interface/msg_control.h"
 
 ISLAND_DESCRIBER::ISLAND_DESCRIBER() : m_lastFindIdx(0), m_nFindType(0)
@@ -224,7 +225,7 @@ ISLAND_DESCRIBER::LOCATOR_DESCR *ISLAND_DESCRIBER::FindLocatorByName(char *name)
     {
         if (m_pLocators[i].pA == nullptr)
             continue;
-        auto *const curName = m_pLocators[i].pA->GetAttribute("name");
+        const char* curName = m_pLocators[i].pA->GetAttribute("name");
         if (curName != nullptr && storm::iEquals(name, curName))
             return &m_pLocators[i];
     }

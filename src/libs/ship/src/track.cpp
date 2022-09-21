@@ -1,8 +1,8 @@
 #include "track.h"
 #include "entity.h"
 #include "core.h"
-#include "defines.h"
-#include "inlines.h"
+#include "math3d.h"
+#include "math_inlines.h"
 
 VDX9RENDER *ShipTracks::ShipTrack::pRS = nullptr;
 SEA_BASE *ShipTracks::ShipTrack::pSea = nullptr;
@@ -24,8 +24,8 @@ bool ShipTracks::Init()
 
     ShipTrack::pRS = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
     Assert(ShipTrack::pRS);
-    if (sea_id = EntityManager::GetEntityId("sea"))
-        ShipTrack::pSea = static_cast<SEA_BASE *>(EntityManager::GetEntityPointer(sea_id));
+    if (sea_id = core.GetEntityId("sea"))
+        ShipTrack::pSea = static_cast<SEA_BASE *>(core.GetEntityPointer(sea_id));
     return true;
 }
 

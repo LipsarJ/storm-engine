@@ -1,7 +1,7 @@
 #include "t_fish_schools.h"
 #include "entity.h"
 #include "core.h"
-#include "defines.h"
+#include "math_inlines.h"
 #include "rands.h"
 #include "shared/messages.h"
 #include "v_file_service.h"
@@ -21,7 +21,7 @@ TFishSchools::~TFishSchools()
             delete fishSchools[i];
     }
 
-    EntityManager::EraseEntity(fishSchoolModel);
+    core.EraseEntity(fishSchoolModel);
 }
 
 //--------------------------------------------------------------------
@@ -44,7 +44,7 @@ void TFishSchools::Init()
     if (!renderService)
         throw std::runtime_error("!FishSchools: No service 'dx9render'");
 
-    sea = static_cast<SEA_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("sea")));
+    sea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
     if (!sea)
     {
         enabled = false;
@@ -64,7 +64,7 @@ void TFishSchools::Init()
 
     AddAttractor(&cameraObject);
 
-    fishSchoolModel = EntityManager::CreateEntity("MODELR");
+    fishSchoolModel = core.CreateEntity("MODELR");
     core.Send_Message(fishSchoolModel, "ls", MSG_MODEL_LOAD_GEO, ANIMALS_FISHSCHOOL_FILENAME);
 }
 
@@ -122,14 +122,14 @@ void TFishSchools::Realize(uint32_t _dTime)
       float   cameraPersp;
       renderService->GetCamera(cameraPos, cameraAng, cameraPersp);
     */
-    sea = static_cast<SEA_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("sea")));
+    sea = static_cast<SEA_BASE *>(core.GetEntityPointer(core.GetEntityId("sea")));
     if (!sea)
     {
         enabled = false;
         return;
     }
 
-    auto *fishSchool = static_cast<MODEL *>(EntityManager::GetEntityPointer(fishSchoolModel));
+    auto *fishSchool = static_cast<MODEL *>(core.GetEntityPointer(fishSchoolModel));
     if (!fishSchool)
         return;
 

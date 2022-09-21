@@ -5,8 +5,9 @@
 #include <thread>
 
 #include "core.h"
+#include "math3d.h"
 #include "sse.h"
-#include "inlines.h"
+#include "math_inlines.h"
 #include "shared/sea_ai/script_defines.h"
 #include "tga.h"
 #include "v_file_service.h"
@@ -57,6 +58,7 @@ SEA::SEA()
     dwMinDim = 128;
 
     fMaxSeaHeight = 20.0f;
+    fMaxSeaDistance = 1600.0f;
     fGridStep = 0.06f;
     fLodScale = 0.4f;
 
@@ -654,7 +656,7 @@ void SEA::CalculateLOD(const CVECTOR &v1, const CVECTOR &v2, int32_t &iMaxLOD, i
 
 void SEA::AddBlock(int32_t iTX, int32_t iTY, int32_t iSize, int32_t iLOD)
 {
-    aBlocks.emplace_back(0, 0, 0, 0, iSize >> iLOD, iTX, iTY, iSize, iLOD, 0, 0, 0, false, false);
+    aBlocks.emplace_back(SeaBlock{0, 0, 0, 0, iSize >> iLOD, iTX, iTY, iSize, iLOD, 0, 0, 0, false, false});
 }
 
 void SEA::BuildTree(int32_t iTX, int32_t iTY, int32_t iLev)
@@ -702,7 +704,7 @@ void SEA::SSE_WaveXZ(SeaVertex **pArray)
         int32_t iX11, iX12, iX21, iX22, iY11, iY12, iY21, iY22;
 
         float fDistance = Sqr(pArray[i]->vPos.x - vCamPos.x) + Sqr(pArray[i]->vPos.z - vCamPos.z);
-        if (fDistance > 1600.0f * 1600.0f)
+        if (fDistance > fMaxSeaDistance * fMaxSeaDistance)
         {
             vNormal[i].x = 0.0f;
             nY1[i] = 1.0f;
@@ -833,7 +835,7 @@ float SEA::WaveXZ(float x, float z, CVECTOR *pNormal)
     int32_t iX11, iX12, iX21, iX22, iY11, iY12, iY21, iY22;
 
     const float fDistance = Sqr(x - vCamPos.x) + Sqr(z - vCamPos.z);
-    if (fDistance > 1600.0f * 1600.0f)
+    if (fDistance > fMaxSeaDistance * fMaxSeaDistance)
     {
         if (pNormal)
             *pNormal = CVECTOR(0.0f, 1.0f, 0.0f);
@@ -972,7 +974,7 @@ void SEA::PrepareIndicesForBlock(uint32_t dwBlockIndex)
         const bool bTestedUp = pB->iY1 == pB2->iY2;
         const bool bTestedDown = pB->iY2 == pB2->iY1;
 
-        // if (!(GetAsyncKeyState('5')<0))
+        // if (!(core.Controls->GetAsyncKeyState('5')<0))
         if (bTestedUp || bTestedDown)
         {
             const int32_t iAddSrc = pB2->iIStart + ((bTestedUp) ? (pB2->iSize0 + 1) * pB2->iSize0 : 0);
@@ -1003,7 +1005,7 @@ void SEA::PrepareIndicesForBlock(uint32_t dwBlockIndex)
         // Test Left & Right
         const bool bTestedLeft = pB->iX1 == pB2->iX2;
         const bool bTestedRight = pB->iX2 == pB2->iX1;
-        // if ((GetAsyncKeyState('6')<0))
+        // if ((core.Controls->GetAsyncKeyState('6')<0))
         if (bTestedLeft || bTestedRight)
         {
             const int32_t iAddSrc = pB2->iIStart + ((bTestedLeft) ? (pB2->iSize0) : 0);
@@ -1798,9 +1800,6 @@ uint32_t SEA::AttributeChanged(ATTRIBUTES *pAttribute)
     ATTRIBUTES *pParent = pAttribute->GetParent();
     ATTRIBUTES *pParent2 = (pParent) ? pParent->GetParent() : nullptr;
 
-    const char *sName = pAttribute->GetThisName();
-    const char *sValue = pAttribute->GetThisAttr();
-
     if (*pParent == "isDone")
     {
         Realize(0);
@@ -1988,6 +1987,11 @@ uint32_t SEA::AttributeChanged(ATTRIBUTES *pAttribute)
 
         fAmp1 = _fAmp1 * fScale;
         fAmp2 = _fAmp2 * fScale;
+    }
+
+    if (*pAttribute == "MaxSeaDistance")
+    {
+        fMaxSeaDistance = AttributesPointer->GetAttributeAsFloat("MaxSeaDistance");
     }
 
     return 0;

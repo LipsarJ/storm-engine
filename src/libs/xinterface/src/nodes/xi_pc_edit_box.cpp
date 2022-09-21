@@ -1,4 +1,6 @@
 #include "xi_pc_edit_box.h"
+
+#include "string_compare.hpp"
 #include "xi_image.h"
 #include "xi_util.h"
 #include <stdio.h>
@@ -290,7 +292,7 @@ void CXI_PCEDITBOX::UpdateString(std::string &str)
     }
     if (!pA)
         return;
-    str = pA->GetAttribute("str");
+    str = to_string(pA->GetAttribute("str"));
     int strLength = utf8::Utf8StringLength(str.c_str());
     if (m_nEditPos < 0)
         m_nEditPos = strLength;

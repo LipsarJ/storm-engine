@@ -2,7 +2,7 @@
 #include "utils.h"
 #include "controls.h"
 #include "core.h"
-#include "v_module_api.h"
+#include "vma.hpp"
 
 BISignIcon::BISignIcon(entid_t BIEntityID, VDX9RENDER *pRS)
 {
@@ -109,7 +109,7 @@ void BISignIcon::Draw()
 void BISignIcon::Init(ATTRIBUTES *pRoot, ATTRIBUTES *pA)
 {
     int32_t n;
-    char *pcTmp;
+    const char *pcTmp;
     char param[256];
 
     m_pARoot = pRoot;

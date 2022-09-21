@@ -1,7 +1,7 @@
 #include "vant.h"
 #include "entity.h"
 #include "core.h"
-#include "defines.h"
+#include "math_inlines.h"
 #include "shared/sail_msg.h"
 #include "ship_base.h"
 #include "v_file_service.h"
@@ -126,14 +126,14 @@ void VANT_BASE::Realize(uint32_t Delta_Time)
         for (auto gn = 0; gn < groupQuantity; gn++)
             if (gdata[gn].nIndx && nVert && (~(gdata[gn].pMatWorld->Pos() - cp)) * pr < fVantMaxDist)
             {
-                static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(gdata[gn].shipEI))->SetLightAndFog(true);
-                static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(gdata[gn].shipEI))->SetLights();
+                static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLightAndFog(true);
+                static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->SetLights();
 
-                RenderService->SetTransform(D3DTS_WORLD, (D3DXMATRIX *)gdata[gn].pMatWorld);
+                RenderService->SetTransform(D3DTS_WORLD, *gdata[gn].pMatWorld);
                 RenderService->DrawBuffer(vBuf, sizeof(VANTVERTEX), iBuf, 0, nVert, gdata[gn].sIndx, gdata[gn].nIndx);
 
-                static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(gdata[gn].shipEI))->UnSetLights();
-                static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(gdata[gn].shipEI))->RestoreLightAndFog();
+                static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->UnSetLights();
+                static_cast<SHIP_BASE *>(core.GetEntityPointer(gdata[gn].shipEI))->RestoreLightAndFog();
                 //_asm rdtsc  _asm sub eax,rtm _asm mov rtm,eax
             }
         while (RenderService->TechniqueExecuteNext())
@@ -166,11 +166,11 @@ uint64_t VANT_BASE::ProcessMessage(MESSAGE &message)
             delete oldgdata;
             groupQuantity++;
         }
-        ZERO(gdata[groupQuantity - 1]);
+        gdata[groupQuantity - 1] = {};
         gdata[groupQuantity - 1].shipEI = message.EntityID();
         gdata[groupQuantity - 1].model_id = message.EntityID();
         MODEL *mdl;
-        mdl = static_cast<MODEL *>(EntityManager::GetEntityPointer(gdata[groupQuantity - 1].model_id));
+        mdl = static_cast<MODEL *>(core.GetEntityPointer(gdata[groupQuantity - 1].model_id));
         if (mdl == nullptr)
             throw std::runtime_error("Bad Vant INIT");
 
@@ -512,10 +512,7 @@ void VANT_BASE::AddLabel(GEOS::LABEL &lbl, NODE *nod)
     if (vn == vantQuantity)
     {
         // create a new guy
-        vd = new VANTDATA;
-        if (vd == nullptr)
-            throw std::runtime_error("Not memory allocate");
-        PZERO(vd, sizeof(VANTDATA));
+        vd = new VANTDATA{};
         vd->bDeleted = false;
         vd->vantNum = vantNum;
         vd->pUpMatWorld = vd->pDownMatWorld = nullptr;

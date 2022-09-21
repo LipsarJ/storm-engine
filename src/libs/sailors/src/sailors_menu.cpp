@@ -1,5 +1,7 @@
 #include "sailors_menu.h"
 
+#include "core.h"
+
 void Menu::Draw(VDX9RENDER *rs, SailorsPoints &sailorsPoints) const
 {
     for (auto i = 0; i < count; i++)
@@ -86,13 +88,13 @@ void Menu::Draw(VDX9RENDER *rs, SailorsPoints &sailorsPoints) const
         if (sailorsPoints.links.selected >= 0 && sailorsPoints.links.selected < sailorsPoints.links.count)
         {
             std::string s1 = "point 1= ";
-            s1 += static_cast<int32_t>(sailorsPoints.links.link[sailorsPoints.links.selected].first);
+            s1 += sailorsPoints.links.link[sailorsPoints.links.selected].first;
             s1 += "('F2')";
 
             rs->Print(rs->GetCurFont(), D3DCOLOR_XRGB(200, 200, 200), 10, 140, "%s", s1.c_str());
 
             s1 = "point 2= ";
-            s1 += static_cast<int32_t>(sailorsPoints.links.link[sailorsPoints.links.selected].next);
+            s1 += sailorsPoints.links.link[sailorsPoints.links.selected].next;
             s1 += "('F3')";
 
             rs->Print(rs->GetCurFont(), D3DCOLOR_XRGB(200, 200, 200), 10, 160, "%s", s1.c_str());
@@ -123,9 +125,9 @@ void Menu::Draw(VDX9RENDER *rs, SailorsPoints &sailorsPoints) const
         }
 
     std::string s1 = "F10 - Reload cannons(";
-    s1 += static_cast<int32_t>(reloaded);
+    s1 += reloaded;
     s1 += "/";
-    s1 += static_cast<int32_t>(count);
+    s1 += count;
     s1 += ")";
 
     rs->Print(rs->GetCurFont(), D3DCOLOR_XRGB(200, 200, 200), 10, 470, "%s", s1.c_str());
@@ -144,19 +146,19 @@ void Menu::Draw(VDX9RENDER *rs, SailorsPoints &sailorsPoints) const
 void Menu::Update(SailorsPoints &sailorsPoints)
 {
     line[0] = "people count <";
-    line[0] += static_cast<int32_t>(sailrs->shipWalk[0].crewCount);
+    line[0] += static_cast<int32_t>(sailrs->shipWalk[0].shipMan.size());
     line[0] += ">";
 
     line[1] = "selected point <";
-    line[1] += static_cast<int32_t>(sailorsPoints.points.selected);
+    line[1] += sailorsPoints.points.selected;
     line[1] += ">(";
-    line[1] += static_cast<int32_t>(sailorsPoints.points.count);
+    line[1] += sailorsPoints.points.count;
     line[1] += ")";
 
     line[2] = "selected path <";
-    line[2] += static_cast<int32_t>(sailorsPoints.links.selected);
+    line[2] += sailorsPoints.links.selected;
     line[2] += ">(";
-    line[2] += static_cast<int32_t>(sailorsPoints.links.count);
+    line[2] += sailorsPoints.links.count;
     line[2] += ")";
 };
 
@@ -169,7 +171,7 @@ void Menu::ChangeControl1(int key, SailorsPoints &sailorsPoints) // Change peopl
 
     if (key == VK_LEFT)
     {
-        if (!sailrs->shipWalk[0].crewCount)
+        if (sailrs->shipWalk[0].shipMan.empty())
         {
             for (auto i = 0; i < 50; i++)
                 sailrs->shipWalk[0].CreateNewMan(sailrs->shipWalk[0].sailorsPoints);
@@ -185,7 +187,7 @@ void Menu::ChangeControl1(int key, SailorsPoints &sailorsPoints) // Change peopl
 
         sailrs->shipWalk[0].sailorsPoints.points.point[sailrs->shipWalk[0].shipMan[0].targetWayPoint].buisy = false;
 
-        sailrs->shipWalk[0].DeleteMan(0);
+        sailrs->shipWalk[0].shipMan.erase(std::begin(sailrs->shipWalk[0].shipMan));
     }
 
     Update(sailorsPoints);
@@ -551,42 +553,42 @@ void Menu::OnKeyPress(SailorsPoints &sailorsPoints)
     key = 0;
     shiftKey = 0;
 
-    if (GetAsyncKeyState(VK_UP) < 0)
+    if (core.Controls->GetAsyncKeyState(VK_UP) < 0)
         key = VK_UP;
-    else if (GetAsyncKeyState(VK_DOWN) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_DOWN) < 0)
         key = VK_DOWN;
-    else if (GetAsyncKeyState(VK_LEFT) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_LEFT) < 0)
         key = VK_LEFT;
-    else if (GetAsyncKeyState(VK_RIGHT) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_RIGHT) < 0)
         key = VK_RIGHT;
-    else if (GetAsyncKeyState(VK_RETURN) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_RETURN) < 0)
         key = VK_RETURN;
-    else if (GetAsyncKeyState(VK_INSERT) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_INSERT) < 0)
         key = VK_INSERT;
-    else if (GetAsyncKeyState(VK_DELETE) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_DELETE) < 0)
         key = VK_DELETE;
-    else if (GetAsyncKeyState(VK_SPACE) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_SPACE) < 0)
         key = VK_SPACE;
-    else if (GetAsyncKeyState(VK_F1) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F1) < 0)
         key = VK_F1;
-    else if (GetAsyncKeyState(VK_F2) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F2) < 0)
         key = VK_F2;
-    else if (GetAsyncKeyState(VK_F3) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F3) < 0)
         key = VK_F3;
-    else if (GetAsyncKeyState(VK_F5) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F5) < 0)
         key = VK_F5;
-    else if (GetAsyncKeyState(VK_F6) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F6) < 0)
         key = VK_F6;
-    else if (GetAsyncKeyState(VK_F9) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F9) < 0)
         key = VK_F9;
-    else if (GetAsyncKeyState(VK_F4) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F4) < 0)
         key = VK_F4;
-    else if (GetAsyncKeyState(VK_F10) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F10) < 0)
         key = VK_F10;
-    else if (GetAsyncKeyState(VK_F11) < 0)
+    else if (core.Controls->GetAsyncKeyState(VK_F11) < 0)
         key = VK_F11;
 
-    if (GetAsyncKeyState(VK_LSHIFT) < 0 || GetAsyncKeyState(VK_RSHIFT) < 0)
+    if (core.Controls->GetAsyncKeyState(VK_LSHIFT) < 0 || core.Controls->GetAsyncKeyState(VK_RSHIFT) < 0)
         shiftKey = 1;
     else
         shiftKey = 0;

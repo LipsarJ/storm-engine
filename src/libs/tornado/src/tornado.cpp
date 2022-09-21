@@ -55,11 +55,11 @@ Tornado::~Tornado()
 bool Tornado::Init()
 {
     // core.LayerCreate("execute", true, false);
-    EntityManager::SetLayerType(EXECUTE, EntityManager::Layer::Type::execute);
+    core.SetLayerType(EXECUTE, layer_type_t::execute);
     // core.LayerCreate("realize", true, false);
-    EntityManager::SetLayerType(REALIZE, EntityManager::Layer::Type::realize);
-    EntityManager::AddToLayer(EXECUTE, GetId(), 70000);
-    EntityManager::AddToLayer(REALIZE, GetId(), 70000);
+    core.SetLayerType(REALIZE, layer_type_t::realize);
+    core.AddToLayer(EXECUTE, GetId(), 70000);
+    core.AddToLayer(REALIZE, GetId(), 70000);
 
     // DX9 render
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
@@ -113,8 +113,8 @@ void Tornado::Execute(uint32_t delta_time)
         if (galhpa < 0.0f)
         {
             galhpa = 0.0f;
-            core.Event("TornadoDelete", nullptr);
-            EntityManager::EraseEntity(GetId());
+            core.Event("TornadoDelete");
+            core.EraseEntity(GetId());
         }
     }
     else

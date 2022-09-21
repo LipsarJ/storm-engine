@@ -1,5 +1,7 @@
 #include "xi_scroll_image.h"
 
+#include "string_compare.hpp"
+
 #define MAXIMAGEQUANTITY 100
 
 int32_t GetTexFromEvent(VDATA *vdat)
@@ -447,7 +449,7 @@ void CXI_SCROLLIMAGE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, c
     {
         // get special technique name and color
         m_dwSpecTechniqueARGB = pAttribute->GetAttributeAsDword("SpecTechniqueColor");
-        char *sTechnique = pAttribute->GetAttribute("SpecTechniqueName");
+        const char *sTechnique = pAttribute->GetAttribute("SpecTechniqueName");
         if (sTechnique != nullptr)
         {
             const auto len = strlen(sTechnique) + 1;
@@ -483,7 +485,7 @@ void CXI_SCROLLIMAGE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, c
                 }
                 for (i = 0; i < m_nGroupQuantity; i++)
                 {
-                    char *stmp = pA->GetAttribute(i);
+                    const char *stmp = pA->GetAttribute(i);
                     if (stmp == nullptr)
                         continue;
                     const auto len = strlen(stmp) + 1;
@@ -501,7 +503,7 @@ void CXI_SCROLLIMAGE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, c
         // get bad picture
         for (n = 0; n < m_nSlotsQnt; n++)
         {
-            char *sBadPict;
+            const char *sBadPict;
             sprintf_s(param, "BadPicture%d", n + 1);
             if ((sBadPict = pAttribute->GetAttribute(param)) != nullptr)
             {
@@ -529,7 +531,7 @@ void CXI_SCROLLIMAGE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, c
         for (i = 0; i < m_Image.size(); i++)
         {
             char attrName[256];
-            char *sStringName;
+            const char *sStringName;
             sprintf_s(attrName, "pic%d", i + 1);
             ATTRIBUTES *pListEntity = pAttribute->GetAttributeClass(attrName);
 
@@ -553,7 +555,7 @@ void CXI_SCROLLIMAGE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, c
                     sStringName = pListEntity->GetAttribute("str1");
                     if (sStringName != nullptr && sStringName[0] == '#')
                     {
-                        m_Image[i].string1 = sStringName;
+                        m_Image[i].string1 = std::string_view(sStringName).substr(1);
                     }
                     else
                         m_Image[i].str1 = pStringService->GetStringNum(sStringName);
@@ -565,14 +567,14 @@ void CXI_SCROLLIMAGE::LoadIni(INIFILE *ini1, const char *name1, INIFILE *ini2, c
                     sStringName = pListEntity->GetAttribute("str2");
                     if (sStringName != nullptr && sStringName[0] == '#')
                     {
-                        m_Image[i].string2 = sStringName;
+                        m_Image[i].string2 = std::string_view(sStringName).substr(1);
                     }
                     else
                         m_Image[i].str2 = pStringService->GetStringNum(sStringName);
                 }
 
                 // set pictures
-                char *tmpStr;
+                const char *tmpStr;
                 for (n = 0; n < m_nSlotsQnt; n++)
                 {
                     sprintf_s(param, "name%d", n + 1);
@@ -1022,7 +1024,7 @@ void CXI_SCROLLIMAGE::ChangeScroll(int nScrollItemNum)
         char sAttrName[256];
         char param[256];
         ATTRIBUTES *pAttribute;
-        char *sStringName;
+        const char *sStringName;
         for (i = nScrollItemNum; i < nScrollLastNum; i++)
         {
             m_Image[i].Clear();
@@ -1038,7 +1040,7 @@ void CXI_SCROLLIMAGE::ChangeScroll(int nScrollItemNum)
                     sStringName = pAttribute->GetAttribute("str1");
                     if (sStringName != nullptr && sStringName[0] == '#')
                     {
-                        m_Image[i].string1 = sStringName;
+                        m_Image[i].string1 = std::string_view(sStringName).substr(1);
                     }
                     else
                         m_Image[i].str1 = pStringService->GetStringNum(sStringName);
@@ -1050,14 +1052,14 @@ void CXI_SCROLLIMAGE::ChangeScroll(int nScrollItemNum)
                     sStringName = pAttribute->GetAttribute("str2");
                     if (sStringName != nullptr && sStringName[0] == '#')
                     {
-                        m_Image[i].string2 = sStringName;
+                        m_Image[i].string2 = std::string_view(sStringName).substr(1);
                     }
                     else
                         m_Image[i].str2 = pStringService->GetStringNum(sStringName);
                 }
 
                 // set pictures
-                char *tmpStr;
+                const char *tmpStr;
                 for (n = 0; n < m_nSlotsQnt; n++)
                 {
                     sprintf_s(param, "name%d", n + 1);
@@ -1165,7 +1167,7 @@ void CXI_SCROLLIMAGE::RefreshScroll()
     {
         // get special technique name and color
         m_dwSpecTechniqueARGB = pAttribute->GetAttributeAsDword("SpecTechniqueColor");
-        char *sTechnique = pAttribute->GetAttribute("SpecTechniqueName");
+        const char *sTechnique = pAttribute->GetAttribute("SpecTechniqueName");
         if (sTechnique != nullptr)
         {
             const auto len = strlen(sTechnique) + 1;
@@ -1203,7 +1205,7 @@ void CXI_SCROLLIMAGE::RefreshScroll()
                 }
                 for (i = 0; i < m_nGroupQuantity; i++)
                 {
-                    char *stmp = pA->GetAttribute(i);
+                    const char *stmp = pA->GetAttribute(i);
                     if (stmp == nullptr)
                         continue;
                     const auto len = strlen(stmp) + 1;
@@ -1221,7 +1223,7 @@ void CXI_SCROLLIMAGE::RefreshScroll()
         // get bad picture
         for (n = 0; n < m_nSlotsQnt; n++)
         {
-            char *sBadPict;
+            const char *sBadPict;
             sprintf_s(param, "BadPicture%d", n + 1);
             if ((sBadPict = pAttribute->GetAttribute(param)) != nullptr)
             {
@@ -1249,7 +1251,7 @@ void CXI_SCROLLIMAGE::RefreshScroll()
         for (i = 0; i < m_Image.size(); i++)
         {
             char attrName[256];
-            char *sStringName;
+            const char *sStringName;
             sprintf_s(attrName, "pic%d", i + 1);
             ATTRIBUTES *pListEntity = pAttribute->GetAttributeClass(attrName);
 
@@ -1273,7 +1275,7 @@ void CXI_SCROLLIMAGE::RefreshScroll()
                     sStringName = pListEntity->GetAttribute("str1");
                     if (sStringName != nullptr && sStringName[0] == '#')
                     {
-                        m_Image[i].string1 = sStringName;
+                        m_Image[i].string1 = std::string_view(sStringName).substr(1);
                     }
                     else
                         m_Image[i].str1 = pStringService->GetStringNum(sStringName);
@@ -1285,14 +1287,14 @@ void CXI_SCROLLIMAGE::RefreshScroll()
                     sStringName = pListEntity->GetAttribute("str2");
                     if (sStringName != nullptr && sStringName[0] == '#')
                     {
-                        m_Image[i].string2 = sStringName;
+                        m_Image[i].string2 = std::string_view(sStringName).substr(1);
                     }
                     else
                         m_Image[i].str2 = pStringService->GetStringNum(sStringName);
                 }
 
                 // set pictures
-                char *tmpStr;
+                const char *tmpStr;
                 for (n = 0; n < m_nSlotsQnt; n++)
                 {
                     sprintf_s(param, "name%d", n + 1);
@@ -1518,7 +1520,7 @@ void CXI_SCROLLIMAGE::UpdateTexturesGroup()
             }
             for (i = 0; i < m_nGroupQuantity; i++)
             {
-                char *stmp = pA->GetAttribute(i);
+                const char *stmp = pA->GetAttribute(i);
                 if (stmp == nullptr)
                 {
                     m_sGroupName[i] = nullptr;
@@ -1559,7 +1561,7 @@ void CXI_SCROLLIMAGE::UpdateTexturesGroup()
     }
 }
 
-int CXI_SCROLLIMAGE::FindTexGroupFromOld(char **pGroupList, char *groupName, int listSize)
+int CXI_SCROLLIMAGE::FindTexGroupFromOld(char **pGroupList, const char *groupName, int listSize)
 {
     if (pGroupList == nullptr || groupName == nullptr)
         return -1;
@@ -1573,7 +1575,7 @@ int CXI_SCROLLIMAGE::FindTexGroupFromOld(char **pGroupList, char *groupName, int
 
 void CXI_SCROLLIMAGE::IMAGEDESCRIBE::Clear()
 {
-    std::fill(slots.begin(), slots.end(), ImageSlot{});
+    slots.clear();
 
     str1 = -1;
     str2 = -1;

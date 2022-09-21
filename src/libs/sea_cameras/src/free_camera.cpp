@@ -1,5 +1,5 @@
 #include "free_camera.h"
-#include "sd2_h/save_load.h"
+#include "save_load.h"
 #include "collide.h"
 
 #define SENSITIVITY 0.0015f
@@ -15,7 +15,6 @@ FREE_CAMERA::FREE_CAMERA()
 
     pIslandBase = nullptr;
     pRS = nullptr;
-    ZERO2(vPos, vAng);
     vPos.z = 250.0f;
     vPos.y = 3.0f;
     fFov = FOV;
@@ -35,7 +34,7 @@ bool FREE_CAMERA::Init()
 {
     // GUARD(FREE_CAMERA::FREE_CAMERA())
     // core.LayerCreate("realize",true,false);
-    // EntityManager::AddToLayer("system_messages",GetId(),1);
+    // core.AddToLayer("system_messages",GetId(),1);
     SetDevice();
     // UNGUARD
     return true;
@@ -48,9 +47,9 @@ void FREE_CAMERA::SetDevice()
     pCollide = static_cast<COLLIDE *>(core.GetService("COLL"));
     Assert(pCollide);
 
-    /*EntityManager::CreateEntity(&sphere,"modelr");
+    /*core.CreateEntity(&sphere,"modelr");
     core.Send_Message(sphere,"ls",MSG_MODEL_LOAD_GEO,"mirror");
-    EntityManager::AddToLayer(realize,sphere,10000);*/
+    core.AddToLayer(realize,sphere,10000);*/
 }
 
 bool FREE_CAMERA::CreateState(ENTITY_STATE_GEN *state_gen) const
@@ -78,7 +77,7 @@ void FREE_CAMERA::Execute(uint32_t Delta_Time)
     pRS->GetCamera(vPos, vAng, persp);
 
     if (!pIslandBase)
-        pIslandBase = static_cast<ISLAND_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("island")));
+        pIslandBase = static_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("island")));
 
     if (!pIslandBase)
         return;
@@ -90,7 +89,7 @@ void FREE_CAMERA::Move(uint32_t DeltaTime)
 {
     if (!isActive())
         return;
-    if (LOWORD(GetKeyState(VK_NUMLOCK)) != 0)
+    if (core.Controls->GetKeyState(VK_NUMLOCK) < 0)
         return;
 
     // POINT pnt;
@@ -118,9 +117,9 @@ void FREE_CAMERA::Move(uint32_t DeltaTime)
     float s2 = sinf(vAng.z);
     float speed = 5.0f * 0.001f * static_cast<float>(DeltaTime);
 
-    if (GetAsyncKeyState(VK_SHIFT))
+    if (core.Controls->GetAsyncKeyState(VK_SHIFT))
         speed *= 4.0f;
-    if (GetAsyncKeyState(VK_CONTROL))
+    if (core.Controls->GetAsyncKeyState(VK_CONTROL))
         speed *= 8.0f;
 
     core.Controls->GetControlState("FreeCamera_Forward", cs);
@@ -130,10 +129,10 @@ void FREE_CAMERA::Move(uint32_t DeltaTime)
     if (cs.state == CST_ACTIVE)
         vPos -= speed * CVECTOR(s0 * c1, -s1, c0 * c1);
 
-    /*if (GetAsyncKeyState(VK_LBUTTON))    vPos += speed*CVECTOR(s0*c1, -s1, c0*c1);
-    if (GetAsyncKeyState(VK_RBUTTON))    vPos -= speed*CVECTOR(s0*c1, -s1, c0*c1);
-    if(GetAsyncKeyState('I'))    vPos += speed*CVECTOR(0.0f, 0.1f , 0.0f);
-    if(GetAsyncKeyState('K'))    vPos += speed*CVECTOR(0.0f, -0.1f, 0.0f);*/
+    /*if (core.Controls->GetAsyncKeyState(VK_LBUTTON))    vPos += speed*CVECTOR(s0*c1, -s1, c0*c1);
+    if (core.Controls->GetAsyncKeyState(VK_RBUTTON))    vPos -= speed*CVECTOR(s0*c1, -s1, c0*c1);
+    if(core.Controls->GetAsyncKeyState('I'))    vPos += speed*CVECTOR(0.0f, 0.1f , 0.0f);
+    if(core.Controls->GetAsyncKeyState('K'))    vPos += speed*CVECTOR(0.0f, -0.1f, 0.0f);*/
 
     // vPos = CVECTOR(0.0f, 20.0f, 0.0f);
 
@@ -149,11 +148,11 @@ void FREE_CAMERA::Move(uint32_t DeltaTime)
     {
       vRes = vPos + fRes * (vDst - vPos);
       entid_t ent = pCollide->GetObjectID();
-      MODELR *pEntity = (MODELR*)EntityManager::GetEntityPointer(ent);
+      MODELR *pEntity = (MODELR*)core.GetEntityPointer(ent);
     }
 
 
-    MODEL* pModel = (MODEL*)EntityManager::GetEntityPointer(sphere);
+    MODEL* pModel = (MODEL*)core.GetEntityPointer(sphere);
     pModel->mtx.BuildPosition(vRes.x,vRes.y,vRes.z);
     delete pVW;*/
 }

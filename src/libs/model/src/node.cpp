@@ -3,6 +3,7 @@
 #include "entity.h"
 #include "core.h"
 #include "modelr.h"
+#include "string_compare.hpp"
 
 VGEOMETRY *NODER::gs = nullptr;
 VDX9RENDER *NODER::rs = nullptr;
@@ -517,8 +518,8 @@ void NODER::Link(NODE *node)
 //-------------------------------------------------------------------
 entid_t NODER::Unlink2Model()
 {
-    const entid_t id = EntityManager::CreateEntity("modelr");
-    auto *mdl = static_cast<MODELR *>(EntityManager::GetEntityPointer(id));
+    const entid_t id = core.CreateEntity("modelr");
+    auto *mdl = static_cast<MODELR *>(core.GetEntityPointer(id));
 
     // link node to as root
     mdl->root = this;
@@ -546,7 +547,7 @@ entid_t NODER::Unlink2Model()
 //-------------------------------------------------------------------
 void NODER::Link(entid_t id, bool transform)
 {
-    auto *mdl = static_cast<MODELR *>(EntityManager::GetEntityPointer(id));
+    auto *mdl = static_cast<MODELR *>(core.GetEntityPointer(id));
     if (mdl == nullptr)
         return;
 
@@ -566,7 +567,7 @@ void NODER::Link(entid_t id, bool transform)
     // prevent self-deleting
     mdl->root = nullptr;
     // delete model
-    EntityManager::EraseEntity(id);
+    core.EraseEntity(id);
 }
 
 //-------------------------------------------------------------------

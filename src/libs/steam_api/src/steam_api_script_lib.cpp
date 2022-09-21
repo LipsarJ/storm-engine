@@ -1,8 +1,8 @@
 #include "steam_api_script_lib.hpp"
 
-#include "steam_api_impl.hpp"
+#include "steam_api.hpp"
 #include "core.h"
-#include "defines.h"
+#include "vma.hpp"
 #include "s_import_func.h"
 #include "v_s_stack.h"
 

@@ -11,12 +11,12 @@
 #include "wdm_islands.h"
 
 #include "core.h"
+#include "math_inlines.h"
 
 #include "wdm_camera.h"
 #include "wdm_ship.h"
 #include "world_map.h"
-#include "defines.h"
-#include "storm/string_compare.hpp"
+#include "string_compare.hpp"
 
 // ============================================================================================
 // Collision data
@@ -370,11 +370,11 @@ void WdmIslands::SetIslandsData(ATTRIBUTES *apnt, bool isChange)
         if (!a)
             continue;
         // Get the parameters of the label
-        char *id = a->GetAttribute("id");
-        char *locator = a->GetAttribute("locator");
-        char *text = a->GetAttribute("text");
+        const char *id = a->GetAttribute("id");
+        const char *locator = a->GetAttribute("locator");
+        const char *text = a->GetAttribute("text");
         const int32_t icon = static_cast<int32_t>(a->GetAttributeAsDword("icon", static_cast<uint32_t>(-1)));
-        char *font = a->GetAttribute("font");
+        const char *font = a->GetAttribute("font");
         const float pivotX = -0.5f;
         const float pivotY = -0.5f;
         const float heightView = a->GetAttributeAsFloat("heightView", 250.0);
@@ -386,7 +386,7 @@ void WdmIslands::SetIslandsData(ATTRIBUTES *apnt, bool isChange)
             continue;
         }
         // looking for a label among existing
-        const uint32_t hash = TOREMOVE::HashNoCase(id);
+        const uint32_t hash = MakeHashValue(id);
         int32_t index = LabelsFind(id, hash);
         if (index < 0)
         {

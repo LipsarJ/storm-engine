@@ -1,16 +1,17 @@
-#include "storm/xinterface/options_parser.hpp"
+#include "options_parser.hpp"
+
+#include <SDL2/SDL.h>
 
 #include "xinterface.h"
 #include "back_scene/back_scene.h"
 #include "help_chooser/help_chooser.h"
 #include "info_handler.h"
+#include "string_compare.hpp"
 #include "nodes/all_xi_node.h"
 #include "string_service/obj_str_service.h"
 #include "string_service/str_service.h"
 #include "xservice.h"
 #include <cstdio>
-
-#include <direct.h>
 
 #define CHECK_FILE_NAME "PiratesReadme.txt"
 
@@ -222,8 +223,8 @@ void XINTERFACE::SetDevice()
         }
     }
 
-    EntityManager::SetLayerType(INTERFACE_EXECUTE, EntityManager::Layer::Type::execute);
-    EntityManager::SetLayerType(INTERFACE_REALIZE, EntityManager::Layer::Type::realize);
+    core.SetLayerType(INTERFACE_EXECUTE, layer_type_t::execute);
+    core.SetLayerType(INTERFACE_REALIZE, layer_type_t::realize);
     // core.SystemMessages(GetId(),true);
 
     if (AttributesPointer)
@@ -410,10 +411,9 @@ void XINTERFACE::Realize(uint32_t)
             for (auto i = 0; i < m_nStringQuantity; i++)
                 if (m_stringes[i].bUsed)
                 {
-                    auto *tmps = tmpAttr->GetAttribute(m_stringes[i].sStringName);
                     pRenderService->ExtPrint(m_stringes[i].fontNum, m_stringes[i].dwColor, 0, m_stringes[i].eAlignment,
                                              true, m_stringes[i].fScale, dwScreenWidth, dwScreenHeight, m_stringes[i].x,
-                                             m_stringes[i].y, "%s", tmpAttr->GetAttribute(m_stringes[i].sStringName));
+                                             m_stringes[i].y, "%s", static_cast<const char*>(tmpAttr->GetAttribute(m_stringes[i].sStringName)));
                 }
     }
 
@@ -784,11 +784,11 @@ uint64_t XINTERFACE::ProcessMessage(MESSAGE &message)
         if (pA == nullptr)
             break;
         const std::string &param = message.String();
-        char *pText = pA->GetAttribute("Text");
+        const char *pText = pA->GetAttribute("Text");
         if (pText == nullptr)
             break;
         char subText[256];
-        char *pCur = pText;
+        const char *pCur = pText;
         while (true)
         {
             subText[0] = 0;
@@ -1068,13 +1068,22 @@ void XINTERFACE::LoadIni()
     if (!ini)
         throw std::runtime_error("ini file not found!");
 
+#ifdef _WIN32 // FIX_LINUX GetWindowRect
     RECT Screen_Rect;
-    GetWindowRect(static_cast<HWND>(core.GetAppHWND()), &Screen_Rect);
+    GetWindowRect(static_cast<HWND>(core.GetWindow()->OSHandle()), &Screen_Rect);
+#else
+    int sdlScreenWidth, sdlScreenHeight;
+    SDL_GetWindowSize(reinterpret_cast<SDL_Window *>(core.GetWindow()->OSHandle()), &sdlScreenWidth, &sdlScreenHeight);
+#endif
 
     fScale = 1.0f;
     const auto screenSize = core.GetScreenSize();
     dwScreenHeight = screenSize.height;
+#ifdef _WIN32 // FIX_LINUX GetWindowRect
     dwScreenWidth = (Screen_Rect.right - Screen_Rect.left) * dwScreenHeight / (Screen_Rect.bottom - Screen_Rect.top);
+#else
+    dwScreenWidth = sdlScreenWidth * dwScreenHeight / sdlScreenHeight;
+#endif
     if (dwScreenWidth < screenSize.width)
         dwScreenWidth = screenSize.width;
     GlobalScreenRect.top = 0;
@@ -1133,9 +1142,11 @@ void XINTERFACE::LoadIni()
     m_idTex = pRenderService->TextureCreate(param2);
     //  RECT Screen_Rect;
     //  GetWindowRect(core.GetAppHWND(), &Screen_Rect);
+#ifdef _WIN32 // FIX_LINUX Cursor
     lock_x = Screen_Rect.left + (Screen_Rect.right - Screen_Rect.left) / 2;
     lock_y = Screen_Rect.top + (Screen_Rect.bottom - Screen_Rect.top) / 2;
     SetCursorPos(lock_x, lock_y);
+#endif
     fXMousePos = static_cast<float>(dwScreenWidth / 2);
     fYMousePos = static_cast<float>(dwScreenHeight / 2);
     for (int i = 0; i < 4; i++)
@@ -1144,7 +1155,9 @@ void XINTERFACE::LoadIni()
     vMouse[2].tu = vMouse[3].tu = 1.f;
     vMouse[0].tv = vMouse[2].tv = 0.f;
     vMouse[1].tv = vMouse[3].tv = 1.f;
+#ifdef _WIN32 // FIX_LINUX Cursor
     ShowCursor(false);
+#endif
 
     // set blind parameters
     m_fBlindSpeed = ini->GetFloat(section, "BlindTime", 1.f);
@@ -1419,8 +1432,7 @@ void XINTERFACE::SFLB_CreateNode(INIFILE *pOwnerIni, INIFILE *pUserIni, const ch
                         if ((nSubCommand = FindCommand(sSubCommand)) == -1)
                             continue;
 
-                        auto *pHead = new CINODE::COMMAND_REDIRECT;
-                        PZERO(pHead, sizeof(CINODE::COMMAND_REDIRECT));
+                        auto *pHead = new CINODE::COMMAND_REDIRECT{};
                         if (pHead == nullptr)
                             throw std::runtime_error("allocate memory error");
                         pHead->next = pNewNod->m_pCommands[nComNum].pNextControl;
@@ -2000,7 +2012,7 @@ void XINTERFACE::DoControl()
         core.Controls->GetControlState((char *)m_asExitKey[nExitKey].c_str(), cs);
         if (cs.state == CST_ACTIVATED)
         {
-            core.Event("exitCancel", nullptr);
+            core.Event("exitCancel");
             break;
         }
     }
@@ -2202,7 +2214,7 @@ void XINTERFACE::DoControl()
             if (m_pCurNode == nullptr)
             {
                 if (wActCode == ACTION_DEACTIVATE)
-                    core.Event("exitCancel", nullptr);
+                    core.Event("exitCancel");
                 return;
             }
 
@@ -2619,7 +2631,7 @@ uint32_t XINTERFACE::AttributeChanged(ATTRIBUTES *patr)
             {
                 throw std::runtime_error("Allocation memory error");
             }
-            PZERO(pImList, sizeof(IMAGE_Entity));
+            *pImList = {};
             const auto len = strlen(sImageName) + 1;
             if ((pImList->sImageName = new char[len]) == nullptr)
             {
@@ -2636,7 +2648,7 @@ uint32_t XINTERFACE::AttributeChanged(ATTRIBUTES *patr)
         if (storm::iEquals(patr->GetThisName(), "pic"))
         {
             STORM_DELETE(pImList->sPicture);
-            if (patr->GetThisAttr() != nullptr)
+            if (patr->HasValue())
             {
                 const auto len = strlen(patr->GetThisAttr()) + 1;
                 if ((pImList->sPicture = new char[len]) == nullptr)
@@ -2655,7 +2667,7 @@ uint32_t XINTERFACE::AttributeChanged(ATTRIBUTES *patr)
             if (pImList->sImageListName != nullptr)
                 pPictureService->ReleaseTextureID(pImList->sImageListName);
             STORM_DELETE(pImList->sImageListName);
-            if (patr->GetThisAttr() != nullptr)
+            if (patr->HasValue())
             {
                 const auto len = strlen(patr->GetThisAttr()) + 1;
                 if ((pImList->sImageListName = new char[len]) == nullptr)
@@ -2680,7 +2692,7 @@ bool XINTERFACE::SFLB_DoSaveFileData(const char *saveName, const char *saveData)
         return false;
 
     entid_t ei;
-    if (!(ei = EntityManager::GetEntityId("SCRSHOTER")))
+    if (!(ei = core.GetEntityId("SCRSHOTER")))
         return false;
     int32_t textureId = core.Send_Message(ei, "l", MSG_SCRSHOT_MAKE);
     if (textureId == -1)
@@ -2825,7 +2837,7 @@ char *XINTERFACE::SaveFileFind(int32_t saveNum, char *buffer, size_t bufSize, in
     if (!m_pSaveFindRoot) // create save file list
     {
         // get file name for searching (whith full path)
-        char *sSavePath = AttributesPointer->GetAttribute("SavePath");
+        const char *sSavePath = AttributesPointer->GetAttribute("SavePath");
         if (sSavePath != nullptr)
         {
             fio->_CreateDirectory(sSavePath);
@@ -2874,7 +2886,7 @@ bool XINTERFACE::NewSaveFileName(const char *fileName) const
     }
 
     char param[256];
-    char *sSavePath = AttributesPointer->GetAttribute("SavePath");
+    const char *sSavePath = AttributesPointer->GetAttribute("SavePath");
 
     if (sSavePath == nullptr)
     {
@@ -2895,7 +2907,7 @@ void XINTERFACE::DeleteSaveFile(const char *fileName)
         return;
     }
     char param[256];
-    char *sSavePath = AttributesPointer->GetAttribute("SavePath");
+    const char *sSavePath = AttributesPointer->GetAttribute("SavePath");
     if (sSavePath == nullptr)
     {
         sprintf(param, "%s", fileName);
@@ -3344,7 +3356,7 @@ int XINTERFACE::LoadIsExist()
     }
 
     char param[1024];
-    char *sSavePath = AttributesPointer->GetAttribute("SavePath");
+    const char *sSavePath = AttributesPointer->GetAttribute("SavePath");
     if (sSavePath != nullptr)
     {
         fio->_CreateDirectory(sSavePath);

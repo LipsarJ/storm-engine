@@ -1,11 +1,10 @@
 #include "touch.h"
-#include <crtdbg.h>
 
 #include "core.h"
 
 #include "character.h"
 #include "entity.h"
-#include "inlines.h"
+#include "math_inlines.h"
 #include "shared/messages.h"
 #include "shared/sea_ai/script_defines.h"
 
@@ -49,8 +48,7 @@ uint64_t TOUCH::ProcessMessage(MESSAGE &message)
     switch (message.Long())
     {
     case MSG_SHIP_CREATE:
-        pShips[iNumShips] = new TOUCH_SHIP;
-        PZERO(pShips[iNumShips], sizeof(TOUCH_SHIP));
+        pShips[iNumShips] = new TOUCH_SHIP{};
         pShips[iNumShips]->eID = message.EntityID();
         iNumShips++;
         break;
@@ -85,7 +83,7 @@ void TOUCH::Execute(uint32_t dwCoreDeltaTime)
     int32_t i;
     entid_t ent;
     if (!pIslandBase)
-        pIslandBase = static_cast<ISLAND_BASE *>(EntityManager::GetEntityPointer(EntityManager::GetEntityId("island")));
+        pIslandBase = static_cast<ISLAND_BASE *>(core.GetEntityPointer(core.GetEntityId("island")));
 
     // std::this_thread::sleep_for(std::chrono::milliseconds(150));
 
@@ -95,7 +93,7 @@ void TOUCH::Execute(uint32_t dwCoreDeltaTime)
         return;
     for (i = 0; i < iNumShips; i++)
     {
-        pShips[i]->pShip = static_cast<SHIP_BASE *>(EntityManager::GetEntityPointer(pShips[i]->eID));
+        pShips[i]->pShip = static_cast<SHIP_BASE *>(core.GetEntityPointer(pShips[i]->eID));
         if (pShips[i]->pShip && !pShips[i]->iNumVContour)
         {
             pShips[i]->pShip->BuildContour(&pShips[i]->vContour[0], pShips[i]->iNumVContour);
@@ -116,8 +114,8 @@ void TOUCH::Execute(uint32_t dwCoreDeltaTime)
 
     FakeTouch(); // just push out the ships that are still in each other
 
-    // if (GetAsyncKeyState('5')) fScale -= 0.1f;
-    // if (GetAsyncKeyState('6')) fScale += 0.1f;
+    // if (core.Controls->GetAsyncKeyState('5')) fScale -= 0.1f;
+    // if (core.Controls->GetAsyncKeyState('6')) fScale += 0.1f;
 
     RDTSC_E(dwRdtsc);
 }
@@ -430,9 +428,7 @@ BOOL TOUCH::IsIntersectShipsReal(int32_t idx, int32_t cidx, CVECTOR *vPos, CVECT
 
 int32_t TOUCH::ProcessImpulse(int32_t iOurIdx, CVECTOR vPos, CVECTOR vDir, float fPowerApplied)
 {
-    STRENGTH strength;
-
-    ZERO(strength);
+    STRENGTH strength{};
     strength.bInertia = false;
 
     auto *pS1 = pShips[iOurIdx];

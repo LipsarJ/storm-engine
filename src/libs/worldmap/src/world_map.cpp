@@ -26,8 +26,9 @@
 #include "wdm_storm.h"
 #include "wdm_warring_ship.h"
 #include "wdm_wind_ui.h"
-#include "defines.h"
 #include "entity.h"
+#include "math_inlines.h"
+#include "string_compare.hpp"
 
 #ifdef GetObject
 #undef GetObject
@@ -139,11 +140,11 @@ bool WorldMap::Init()
     // GUARD(LocationCamera::Init())
     // Layers
     // core.LayerCreate("execute", true, false);
-    EntityManager::SetLayerType(EXECUTE, EntityManager::Layer::Type::execute);
+    core.SetLayerType(EXECUTE, layer_type_t::execute);
     // core.LayerCreate("realize", true, false);
-    EntityManager::SetLayerType(REALIZE, EntityManager::Layer::Type::realize);
-    EntityManager::AddToLayer(EXECUTE, GetId(), 10000);
-    EntityManager::AddToLayer(REALIZE, GetId(), 10000);
+    core.SetLayerType(REALIZE, layer_type_t::realize);
+    core.AddToLayer(EXECUTE, GetId(), 10000);
+    core.AddToLayer(REALIZE, GetId(), 10000);
 
     // DX9 render
     rs = static_cast<VDX9RENDER *>(core.GetService("dx9render"));
@@ -225,7 +226,7 @@ bool WorldMap::Init()
         wdmObjects->stormBrnDistMax =
             AttributesPointer->GetAttributeAsFloat("stormBrnDistMax", wdmObjects->stormBrnDistMax);
         wdmObjects->stormZone = AttributesPointer->GetAttributeAsFloat("stormZone", wdmObjects->stormZone);
-        auto *const s = AttributesPointer->GetAttribute("debug");
+        const char *s = AttributesPointer->GetAttribute("debug");
         wdmObjects->isDebug = s && (storm::iEquals(s, "true"));
         saveData = AttributesPointer->CreateSubAClass(AttributesPointer, "encounters");
         wdmObjects->resizeRatio = AttributesPointer->GetAttributeAsFloat("resizeRatio", wdmObjects->resizeRatio);
@@ -335,13 +336,13 @@ bool WorldMap::Init()
             }
             if (storm::iEquals(type, "Warring") && modelName && modelName[0])
             {
-                auto *const attacked = a->GetAttribute("attacked");
+                const char *attacked = a->GetAttribute("attacked");
                 if (attacked)
                 {
                     auto *a1 = saveData->FindAClass(saveData, attacked);
                     if (a1)
                     {
-                        auto *const modelName1 = a1->GetAttribute("modelName");
+                        const char *modelName1 = a1->GetAttribute("modelName");
                         if (modelName1 && modelName1[0])
                         {
                             if (!CreateWarringShips(modelName, modelName1, -1.0f, a, a1))
@@ -474,7 +475,7 @@ void WorldMap::Realize(uint32_t delta_time)
 #endif
     }
     //
-    auto *tmp = aDate->GetAttribute("sec");
+    const char *tmp = aDate->GetAttribute("sec");
     if (tmp)
         strcpy_s(wdmObjects->attrSec, tmp);
     tmp = aDate->GetAttribute("min");
@@ -566,7 +567,7 @@ void WorldMap::Realize(uint32_t delta_time)
         const char *upd = AttributesPointer->GetAttribute("addQuestEncounters");
         if (upd && upd[0] != 0)
         {
-            core.Event("WorldMap_AddQuestEncounters", nullptr);
+            core.Event("WorldMap_AddQuestEncounters");
         }
     }
 }

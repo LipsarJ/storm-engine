@@ -1,4 +1,3 @@
-#include <fstream>
 #include <thread>
 
 #include <SDL2/SDL.h>
@@ -6,23 +5,19 @@
 #include <mimalloc.h>
 #include <spdlog/spdlog.h>
 
+#include "core_private.h"
 #include "lifecycle_diagnostics_service.hpp"
 #include "logging.hpp"
-#include "compiler.h"
 #include "os_window.hpp"
-#include "steam_api_impl.hpp"
-#include "file_service.h"
-#include "s_debug.h"
+#include "steam_api.hpp"
 #include "v_sound_service.h"
-#include "storm/fs.h"
+#include "fs.h"
 #include "watermark.hpp"
-
-VFILE_SERVICE *fio = nullptr;
-S_DEBUG *CDebug = nullptr;
-Core &core = core_internal;
 
 namespace
 {
+
+CorePrivate *core_private;
 
 constexpr char defaultLoggerName[] = "system";
 bool isRunning = false;
@@ -32,7 +27,7 @@ storm::diag::LifecycleDiagnosticsService lifecycleDiagnostics;
 
 void RunFrame()
 {
-    if (!core_internal.Run())
+    if (!core_private->Run())
     {
         isRunning = false;
     }
@@ -58,7 +53,6 @@ void RunFrameWithOverflowCheck()
 #else
 #define RunFrameWithOverflowCheck RunFrame
 #endif
-
 
 void mimalloc_fun(const char *msg, void *arg)
 {
@@ -90,17 +84,17 @@ void HandleWindowEvent(const storm::OSWindow::Event &event)
     if (event == storm::OSWindow::Closed)
     {
         isRunning = false;
-        if (core_internal.initialized())
+        if (core_private->initialized())
         {
-            core_internal.Event("DestroyWindow", nullptr);
+            core_private->Event("DestroyWindow");
         }
     }
     else if (event == storm::OSWindow::FocusGained)
     {
         bActive = true;
-        if (core_internal.initialized())
+        if (core_private->initialized())
         {
-            core_internal.AppState(bActive);
+            core_private->AppState(bActive);
             if (const auto soundService = static_cast<VSoundService *>(core.GetService("SoundService")))
             {
                 soundService->SetActiveWithFade(true);
@@ -110,9 +104,9 @@ void HandleWindowEvent(const storm::OSWindow::Event &event)
     else if (event == storm::OSWindow::FocusLost)
     {
         bActive = false;
-        if (core_internal.initialized())
+        if (core_private->initialized())
         {
-            core_internal.AppState(bActive);
+            core_private->AppState(bActive);
             if (const auto soundService = static_cast<VSoundService *>(core.GetService("SoundService")))
             {
                 soundService->SetActiveWithFade(false);
@@ -121,18 +115,20 @@ void HandleWindowEvent(const storm::OSWindow::Event &event)
     }
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow)
+int main(int argc, char *argv[])
 {
     // Prevent multiple instances
+#ifdef _WIN32 // CreateEventA
     if (!CreateEventA(nullptr, false, false, "Global\\FBBD2286-A9F1-4303-B60C-743C3D7AA7BE") ||
         GetLastError() == ERROR_ALREADY_EXISTS)
     {
-        MessageBoxA(nullptr, "Another instance is already running!", "Error", MB_ICONERROR);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "Another instance is already running!", nullptr);
         return EXIT_SUCCESS;
     }
+#endif
     mi_register_output(mimalloc_fun, nullptr);
     mi_option_set(mi_option_show_errors, 1);
-    mi_option_set(mi_option_show_stats, 1);
+    mi_option_set(mi_option_show_stats, 0);
     mi_option_set(mi_option_eager_commit, 1);
     mi_option_set(mi_option_eager_region_commit, 1);
     mi_option_set(mi_option_large_os_pages, 1);
@@ -146,10 +142,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 
     SDL_InitSubSystem(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
 
-    // Init FS
-    FILE_SERVICE File_Service;
-    fio = &File_Service;
-
     // Init diagnostics
     const auto lifecycleDiagnosticsGuard =
 #ifdef STORM_ENABLE_CRASH_REPORTS
@@ -159,11 +151,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 #endif
     if (!lifecycleDiagnosticsGuard)
     {
-        MessageBoxA(nullptr, "Unable to initialize lifecycle service!", "Warning", MB_ICONWARNING);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Warning", "Unable to initialize lifecycle service!", nullptr);
     }
     else
     {
-        lifecycleDiagnostics.setCrashInfoCollector([]() { core_internal.collectCrashInfo(); });
+        lifecycleDiagnostics.setCrashInfoCollector([]() { core_private->collectCrashInfo(); });
     }
 
     // Init stash
@@ -175,12 +167,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
     spdlog::info("mimalloc-redirect status: {}", mi_is_redirected());
 
     // Init core
-    core_internal.Init();
-
-    // Init script debugger
-    S_DEBUG debug;
-    debug.Init();
-    CDebug = &debug;
+    core_private = static_cast<CorePrivate *>(&core);
+    core_private->Init();
 
     // Read config
     auto ini = fio->OpenIniFile(fs::ENGINE_INI_FILE_NAME);
@@ -188,7 +176,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
     uint32_t dwMaxFPS = 0;
     bool bSteam = false;
     int width = 1024, height = 768;
+    int preferred_display = 0;
     bool fullscreen = false;
+    bool show_borders = false;
 
     if (ini)
     {
@@ -201,7 +191,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
         }
         width = ini->GetInt(nullptr, "screen_x", 1024);
         height = ini->GetInt(nullptr, "screen_y", 768);
-        fullscreen = ini->GetInt(nullptr, "full_screen", false) ? true : false;
+        preferred_display = ini->GetInt(nullptr, "display", 0);
+        fullscreen = ini->GetInt(nullptr, "full_screen", false);
+        show_borders = ini->GetInt(nullptr, "window_borders", false);
         bSteam = ini->GetInt(nullptr, "Steam", 1) != 0;
     }
 
@@ -216,17 +208,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
         return EXIT_FAILURE;
     }
 
-    std::shared_ptr<storm::OSWindow> window = storm::OSWindow::Create(width, height, fullscreen);
+    std::shared_ptr<storm::OSWindow> window =
+        storm::OSWindow::Create(width, height, preferred_display, fullscreen, show_borders);
     window->SetTitle("Sea Dogs");
-    core_internal.Set_Hwnd(static_cast<HWND>(window->OSHandle()));
     window->Subscribe(HandleWindowEvent);
     window->Show();
+    core_private->SetWindow(window);
 
     // Init core
-    core_internal.InitBase();
+    core_private->InitBase();
 
     // Message loop
-    auto dwOldTime = GetTickCount();
+    auto dwOldTime = SDL_GetTicks();
 
     isRunning = true;
     while (isRunning)
@@ -239,7 +232,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
             if (dwMaxFPS)
             {
                 const auto dwMS = 1000u / dwMaxFPS;
-                const auto dwNewTime = GetTickCount();
+                const auto dwNewTime = SDL_GetTicks();
                 if (dwNewTime - dwOldTime < dwMS)
                     continue;
                 dwOldTime = dwNewTime;
@@ -260,10 +253,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
     }
 
     // Release
-    core_internal.Event("ExitApplication", nullptr);
-    core_internal.CleanUp();
-    core_internal.ReleaseBase();
+    core_private->Event("ExitApplication");
+    core_private->CleanUp();
+    core_private->ReleaseBase();
+#ifdef _WIN32 // FIX_LINUX Cursor
     ClipCursor(nullptr);
+#endif
     SDL_Quit();
 
     return EXIT_SUCCESS;

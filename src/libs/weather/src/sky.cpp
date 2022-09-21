@@ -2,6 +2,7 @@
 #include "sun_glow.h"
 #include "core.h"
 #include "attributes.h"
+#include "math_inlines.h"
 
 namespace
 {
@@ -326,17 +327,15 @@ void SKY::Realize(uint32_t Delta_Time)
 
     float fFov;
     CVECTOR vPos, vAng;
-    D3DXMATRIX pMatWorld, pMatTranslate, pMatRotate;
+    CMatrix pMatWorld, pMatTranslate, pMatRotate;
 
     pRS->GetCamera(vPos, vAng, fFov);
 
-    D3DXMatrixIdentity(&pMatWorld);
-
-    D3DXMatrixTranslation(&pMatTranslate, vPos.x, vPos.y / 6.0f, vPos.z);
-    D3DXMatrixMultiply(&pMatWorld, &pMatWorld, &pMatTranslate);
-    D3DXMatrixRotationY(&pMatRotate, fAngleY + fSkyAngle);
-    D3DXMatrixMultiply(&pMatWorld, &pMatRotate, &pMatWorld);
-    pRS->SetTransform(D3DTS_WORLD, &pMatWorld);
+    pMatTranslate.BuildPosition(vPos.x, vPos.y / 6.0f, vPos.z);
+    pMatWorld = pMatWorld * pMatTranslate;
+    pMatRotate.BuildRotateY(fAngleY + fSkyAngle);
+    pMatWorld = pMatRotate * pMatWorld;
+    pRS->SetTransform(D3DTS_WORLD, pMatWorld);
 
     if (aSkyDirArray.size() > 1)
     {
@@ -367,12 +366,12 @@ void SKY::Realize(uint32_t Delta_Time)
             entid_t eid;
 
             if (!pAstronomy)
-                if (eid = EntityManager::GetEntityId("Astronomy"))
-                    pAstronomy = static_cast<Entity *>(EntityManager::GetEntityPointer(eid));
+                if (eid = core.GetEntityId("Astronomy"))
+                    pAstronomy = static_cast<Entity *>(core.GetEntityPointer(eid));
 
             if (!pSunGlow)
-                if (eid = EntityManager::GetEntityId("SUNGLOW"))
-                    pSunGlow = static_cast<Entity *>(EntityManager::GetEntityPointer(eid));
+                if (eid = core.GetEntityId("SUNGLOW"))
+                    pSunGlow = static_cast<Entity *>(core.GetEntityPointer(eid));
 
             if (pAstronomy || pSunGlow)
             {
@@ -381,7 +380,7 @@ void SKY::Realize(uint32_t Delta_Time)
                 if (pSunGlow)
                     static_cast<SUNGLOW *>(pSunGlow)->DrawSunMoon();
 
-                pRS->SetTransform(D3DTS_WORLD, &pMatWorld);
+                pRS->SetTransform(D3DTS_WORLD, pMatWorld);
                 if (pRS->TechniqueExecuteStart(sTechSkyBlendAlpha.c_str()))
                     do
                     {
@@ -419,10 +418,10 @@ void SKY::Realize(uint32_t Delta_Time)
             } while (pRS->TechniqueExecuteNext());
     }
 
-    D3DXMatrixIdentity(&pMatWorld);
-    D3DXMatrixTranslation(&pMatTranslate, vPos.x, vPos.y / 6.0f, vPos.z);
-    D3DXMatrixMultiply(&pMatWorld, &pMatWorld, &pMatTranslate);
-    pRS->SetTransform(D3DTS_WORLD, &pMatWorld);
+    pMatWorld.SetIdentity();
+    pMatTranslate.BuildPosition(vPos.x, vPos.y / 6.0f, vPos.z);
+    pMatWorld = pMatWorld * pMatTranslate;
+    pRS->SetTransform(D3DTS_WORLD, pMatWorld);
     pRS->DrawBuffer(iFogVertsID, sizeof(FOGVERTEX), iFogIndexID, 0, kFogVertsNum, 0, kFogTrgsNum / 3,
                     sTechSkyFog.c_str());
 }
@@ -458,25 +457,25 @@ uint32_t SKY::AttributeChanged(ATTRIBUTES *pAttribute)
 
     if (*pAttribute == "techSky")
     {
-        sTechSky = pAttribute->GetThisAttr();
+        sTechSky = to_string(pAttribute->GetThisAttr());
         return 0;
     }
 
     if (*pAttribute == "techSkyBlend")
     {
-        sTechSkyBlend = pAttribute->GetThisAttr();
+        sTechSkyBlend = to_string(pAttribute->GetThisAttr());
         return 0;
     }
 
     if (*pAttribute == "techSkyAlpha")
     {
-        sTechSkyBlendAlpha = pAttribute->GetThisAttr();
+        sTechSkyBlendAlpha = to_string(pAttribute->GetThisAttr());
         return 0;
     }
 
     if (*pAttribute == "techSkyFog")
     {
-        sTechSkyFog = pAttribute->GetThisAttr();
+        sTechSkyFog = to_string(pAttribute->GetThisAttr());
         return 0;
     }
 
@@ -525,13 +524,13 @@ void SKY::FillSkyDirArray(ATTRIBUTES *pAttribute)
             {
                 const auto i = atol(&attrName[1]);
                 if (i < q)
-                    aSkyDirArray[i] = pAttribute->GetAttribute(n);
+                    aSkyDirArray[i] = to_string(pAttribute->GetAttribute(n));
             }
         }
     }
     else
     {
-        aSkyDirArray[0] = pAttribute->GetAttribute(static_cast<size_t>(0U));
+        aSkyDirArray[0] = to_string(pAttribute->GetAttribute(0U));
     }
     fTimeFactor = static_cast<float>(atof(pAttribute->GetThisAttr()));
     if (fTimeFactor < 0.f || fTimeFactor > 24.f)
@@ -563,9 +562,9 @@ void SKY::UpdateTimeFactor()
 
     // fTimeFactor += core.GetDeltaTime() * 0.00005f;
     entid_t eid;
-    if (!(eid = EntityManager::GetEntityId("weather")))
+    if (!(eid = core.GetEntityId("weather")))
         return;
-    fTimeFactor = static_cast<WEATHER_BASE *>(EntityManager::GetEntityPointer(eid))->GetFloat(whf_time_counter);
+    fTimeFactor = static_cast<WEATHER_BASE *>(core.GetEntityPointer(eid))->GetFloat(whf_time_counter);
     fTimeFactor *= (1.f / 24.f) * aSkyDirArray.size();
 
     if (static_cast<int32_t>(fTimeFactor) >= static_cast<int32_t>(aSkyDirArray.size()))

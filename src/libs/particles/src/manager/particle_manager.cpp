@@ -10,9 +10,10 @@
 #include "../i_common/i_emitter.h"
 #include "../i_common/names.h"
 #include "../system/data_source/data_string.h"
-#include "defines.h"
+#include "string_compare.hpp"
 
 #include <filesystem>
+#include <thread>
 
 uint32_t GraphRead = 0;
 
@@ -37,13 +38,14 @@ ParticleManager::ParticleManager(ParticleService *service) : IParticleManager(se
 ParticleManager::~ParticleManager()
 {
     DeleteAllSystems();
-    if (pProjectTexture >= 0)
+    pRS = static_cast<VDX9RENDER *>(core.GetService("DX9Render"));
+    if (pProjectTexture >= 0 && pRS != nullptr)
     {
         pRS->TextureRelease(pProjectTexture);
     }
     pProjectTexture = -1;
 
-    if (pProjectTextureNormalMap)
+    if (pProjectTextureNormalMap && pRS != nullptr)
     {
         pRS->TextureRelease(pProjectTextureNormalMap);
     }

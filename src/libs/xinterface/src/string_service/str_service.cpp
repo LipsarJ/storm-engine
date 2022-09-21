@@ -1,6 +1,7 @@
 #include "str_service.h"
 
 #include "core.h"
+#include "string_compare.hpp"
 
 #include "../xinterface.h"
 #include "s_import_func.h"
@@ -1356,7 +1357,7 @@ uint32_t _InterfaceFindFolders(VS_STACK *pS)
         return IFUNCRESULT_FAILED;
     }
     const char *sFindTemplate = pDat->GetString();
-    std::filesystem::path p = std::filesystem::u8path(sFindTemplate);
+    std::filesystem::path p = std::filesystem::u8path(fio->ConvertPathResource(sFindTemplate));
     const auto mask = p.filename().string();
     const auto vFilenames =
         fio->_GetPathsOrFilenamesByMask(p.remove_filename().string().c_str(), mask.c_str(), false, true, false);
@@ -1482,15 +1483,15 @@ uint32_t _IsKeyPressed(VS_STACK *pS)
     {
         if (storm::iEquals(strKeyName, "shift"))
         {
-            bIsPressed = (GetAsyncKeyState(VK_SHIFT) < 0);
+            bIsPressed = (core.Controls->GetAsyncKeyState(VK_SHIFT) < 0);
         }
         else if (storm::iEquals(strKeyName, "control"))
         {
-            bIsPressed = (GetAsyncKeyState(VK_CONTROL) < 0);
+            bIsPressed = (core.Controls->GetAsyncKeyState(VK_CONTROL) < 0);
         }
         else if (storm::iEquals(strKeyName, "alt"))
         {
-            bIsPressed = (GetAsyncKeyState(VK_MENU) < 0);
+            bIsPressed = (core.Controls->GetAsyncKeyState(VK_MENU) < 0);
         }
     }
     // set return data
