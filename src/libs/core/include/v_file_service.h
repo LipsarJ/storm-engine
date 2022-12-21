@@ -1,6 +1,5 @@
 #pragma once
 
-#include <windows.h>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -58,6 +57,8 @@ class VFILE_SERVICE
     // Resource paths
     virtual void ScanResourcePaths() = 0;
     virtual std::string ConvertPathResource(const char *path) = 0;
+
+    virtual uint64_t GetPathFingerprint(const std::filesystem::path& path) = 0;
 };
 
 //------------------------------------------------------------------------------------------------

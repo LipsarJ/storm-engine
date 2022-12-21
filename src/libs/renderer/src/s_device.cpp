@@ -1252,7 +1252,7 @@ bool DX9RENDER::DX9EndScene()
     if (bDropVideoConveyor && pDropConveyorVBuffer)
     {
         CVECTOR *pV;
-        pDropConveyorVBuffer->Lock(0, 0, (VOID **)&pV, 0);
+        pDropConveyorVBuffer->Lock(0, 0, (void **)&pV, 0);
         for (int32_t i = 0; i < 2; i++)
             pV[i] = CVECTOR(1e6f, 1e6f, 1e6f);
         pDropConveyorVBuffer->Unlock();
@@ -2373,7 +2373,7 @@ void DX9RENDER::RenderAnimation(int32_t ib, void *src, int32_t numVrts, int32_t 
         // Copy verteces
         uint8_t *ptr;
         RDTSC_B(_rdtsc);
-        if (CHECKD3DERR(aniVBuffer->Lock(0, size, (VOID **)&ptr, 0)) == true)
+        if (CHECKD3DERR(aniVBuffer->Lock(0, size, (void **)&ptr, 0)) == true)
             return;
         dwNumLV++;
         RDTSC_E(_rdtsc);
@@ -2400,7 +2400,7 @@ void *DX9RENDER::LockVertexBuffer(int32_t id, uint32_t dwFlags)
 {
     uint8_t *ptr;
     VertexBuffers[id].dwNumLocks++;
-    if (CHECKD3DERR(VertexBuffers[id].buff->Lock(0, VertexBuffers[id].size, (VOID **)&ptr, dwFlags)))
+    if (CHECKD3DERR(VertexBuffers[id].buff->Lock(0, VertexBuffers[id].size, (void **)&ptr, dwFlags)))
         return nullptr;
 
     dwNumLV++;
@@ -2423,7 +2423,7 @@ void *DX9RENDER::LockIndexBuffer(int32_t id, uint32_t dwFlags)
 {
     uint8_t *ptr = nullptr;
     IndexBuffers[id].dwNumLocks++;
-    if (CHECKD3DERR(IndexBuffers[id].buff->Lock(0, IndexBuffers[id].size, (VOID **)&ptr, dwFlags)))
+    if (CHECKD3DERR(IndexBuffers[id].buff->Lock(0, IndexBuffers[id].size, (void **)&ptr, dwFlags)))
         return nullptr;
 
     dwNumLI++;
@@ -2825,10 +2825,7 @@ int32_t DX9RENDER::Print(int32_t nFontNum, uint32_t color, int32_t x, int32_t y,
     vsnprintf(Buff_4k, sizeof(Buff_4k), format, args);
     va_end(args);
 
-    FontList[nFontNum].font->StoreFontParameters();
-    FontList[nFontNum].font->SetColor(color);
-    const int32_t retVal = FontList[nFontNum].font->Print(x, y, Buff_4k);
-    FontList[nFontNum].font->RestoreFontParameters();
+    const int32_t retVal = FontList[nFontNum].font->Print(x, y, Buff_4k, {.color = color});
     return retVal;
     // UNGUARD
 }
@@ -2850,17 +2847,13 @@ int32_t DX9RENDER::StringWidth(const std::string_view &string, int32_t nFontNum,
     if (FontList[nFontNum].ref == 0 || pFont == nullptr)
         return 0;
 
-    pFont->StoreFontParameters();
 
     const int32_t xs = screen_size.x;
     if (scrWidth == 0)
         scrWidth = xs;
     if (xs != scrWidth)
         fScale *= static_cast<float>(xs) / scrWidth;
-    pFont->SetScale(fScale);
-
-    const int32_t retVal = pFont->GetStringWidth(string);
-    pFont->RestoreFontParameters();
+    const int32_t retVal = pFont->GetStringWidth(string, fScale);
     return retVal;
 }
 
@@ -2896,8 +2889,6 @@ int32_t DX9RENDER::ExtPrint(int32_t nFontNum, uint32_t foreColor, uint32_t backC
     vsnprintf(Buff_4k, sizeof(Buff_4k), format, args);
     va_end(args);
 
-    pFont->StoreFontParameters();
-
     IDirect3DSurface9 *pRenderTarget;
     GetRenderTarget(&pRenderTarget);
     D3DSURFACE_DESC dscrSurface;
@@ -2928,12 +2919,12 @@ int32_t DX9RENDER::ExtPrint(int32_t nFontNum, uint32_t foreColor, uint32_t backC
         break;
     }
 
-    pFont->SetColor(foreColor);
-    pFont->SetShadow(bShadow);
-    pFont->SetScale(fScale);
-    const int32_t retVal = pFont->Print(x, y, Buff_4k);
-
-    pFont->RestoreFontParameters();
+    const int32_t retVal = pFont->Print(x, y, Buff_4k,
+                                        {
+                                            .scale = fScale,
+                                            .color = foreColor,
+                                            .shadow = bShadow,
+                                        });
     return retVal;
     // UNGUARD
 }
@@ -2971,9 +2962,9 @@ int32_t DX9RENDER::LoadFont(const char *fontName)
         }
     if (nFontQuantity < MAX_FONTS)
     {
-        if ((FontList[i].font = new FONT) == nullptr)
+        if ((FontList[i].font = new FONT(*this, *d3d9)) == nullptr)
             throw std::runtime_error("allocate memory error");
-        if (!FontList[i].font->Init(fontName, fontIniFileName, d3d9, this))
+        if (!FontList[i].font->Init(fontName, fontIniFileName))
         {
             delete FontList[i].font;
             core.Trace("Can't init font %s", fontName);
@@ -3112,9 +3103,9 @@ bool DX9RENDER::SetFontIniFileName(const char *iniName)
     {
         delete FontList[n].font;
 
-        if ((FontList[n].font = new FONT) == nullptr)
+        if ((FontList[n].font = new FONT(*this, *d3d9)) == nullptr)
             throw std::runtime_error("allocate memory error");
-        FontList[n].font->Init(FontList[n].name, fontIniFileName, d3d9, this);
+        FontList[n].font->Init(FontList[n].name, fontIniFileName);
         if (FontList[n].ref == 0)
             FontList[n].font->TempUnload();
     }
@@ -3438,7 +3429,7 @@ void DX9RENDER::DrawRects(RS_RECT *pRSR, uint32_t dwRectsNum, const char *cBlock
             drawCount = rectsVBuffer_SizeInRects;
         // Buffer
         RECT_VERTEX *data = nullptr;
-        if (rectsVBuffer->Lock(0, drawCount * 6 * sizeof(RECT_VERTEX), (VOID **)&data, D3DLOCK_DISCARD) != D3D_OK)
+        if (rectsVBuffer->Lock(0, drawCount * 6 * sizeof(RECT_VERTEX), (void **)&data, D3DLOCK_DISCARD) != D3D_OK)
             return;
         if (!data)
             return;
@@ -3590,7 +3581,7 @@ HRESULT DX9RENDER::VBLock(IDirect3DVertexBuffer9 *pVB, UINT OffsetToLock, UINT S
                           uint32_t Flags)
 {
     dwNumLV++;
-    return CHECKD3DERR(pVB->Lock(OffsetToLock, SizeToLock, (VOID **)ppbData, Flags));
+    return CHECKD3DERR(pVB->Lock(OffsetToLock, SizeToLock, (void **)ppbData, Flags));
 }
 
 void DX9RENDER::VBUnlock(IDirect3DVertexBuffer9 *pVB)
@@ -3655,7 +3646,7 @@ HRESULT DX9RENDER::SetRenderTarget(IDirect3DSurface9 *pRenderTarget, IDirect3DSu
     return result ? D3D_OK : S_FALSE;
 }
 
-HRESULT DX9RENDER::Clear(uint32_t Count, CONST D3DRECT *pRects, uint32_t Flags, D3DCOLOR Color, float Z,
+HRESULT DX9RENDER::Clear(uint32_t Count, const D3DRECT *pRects, uint32_t Flags, D3DCOLOR Color, float Z,
                          uint32_t Stencil)
 {
     return CHECKD3DERR(d3d9->Clear(Count, pRects, Flags, Color, Z, Stencil));
@@ -3685,7 +3676,7 @@ HRESULT DX9RENDER::EndScene()
     return D3D_OK;
 }
 
-HRESULT DX9RENDER::SetClipPlane(uint32_t Index, CONST float *pPlane)
+HRESULT DX9RENDER::SetClipPlane(uint32_t Index, const float *pPlane)
 {
     // return d3d9->SetClipPlane( Index, pPlane );
     return D3D_OK;
@@ -3716,7 +3707,7 @@ HRESULT DX9RENDER::CreateDepthStencilSurface(UINT Width, UINT Height, D3DFORMAT 
     return CHECKD3DERR(d3d9->CreateDepthStencilSurface(Width, Height, Format, MultiSample, 0, TRUE, ppSurface, NULL));
 }
 
-HRESULT DX9RENDER::CreateVertexDeclaration(CONST D3DVERTEXELEMENT9 *pVertexElements,
+HRESULT DX9RENDER::CreateVertexDeclaration(const D3DVERTEXELEMENT9 *pVertexElements,
                                            IDirect3DVertexDeclaration9 **ppDecl)
 {
     return CHECKD3DERR(d3d9->CreateVertexDeclaration(pVertexElements, ppDecl));
@@ -3727,12 +3718,12 @@ HRESULT DX9RENDER::SetVertexDeclaration(IDirect3DVertexDeclaration9 *pDecl)
     return CHECKD3DERR(d3d9->SetVertexDeclaration(pDecl));
 }
 
-HRESULT DX9RENDER::CreateVertexShader(CONST uint32_t *pFunction, IDirect3DVertexShader9 **ppShader)
+HRESULT DX9RENDER::CreateVertexShader(const uint32_t *pFunction, IDirect3DVertexShader9 **ppShader)
 {
     return CHECKD3DERR(d3d9->CreateVertexShader((const DWORD *)pFunction, ppShader));
 }
 
-HRESULT DX9RENDER::CreatePixelShader(CONST uint32_t *pFunction, IDirect3DPixelShader9 **ppShader)
+HRESULT DX9RENDER::CreatePixelShader(const uint32_t *pFunction, IDirect3DPixelShader9 **ppShader)
 {
     return CHECKD3DERR(d3d9->CreatePixelShader((const DWORD *)pFunction, ppShader));
 }
@@ -3788,12 +3779,12 @@ HRESULT DX9RENDER::GetLevelDesc(IDirect3DCubeTexture9 *ppCubeTexture, UINT Level
 }
 
 HRESULT DX9RENDER::LockRect(IDirect3DCubeTexture9 *ppCubeTexture, D3DCUBEMAP_FACES FaceType, UINT Level,
-                            D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, uint32_t Flags)
+                            D3DLOCKED_RECT *pLockedRect, const RECT *pRect, uint32_t Flags)
 {
     return CHECKD3DERR(ppCubeTexture->LockRect(FaceType, Level, pLockedRect, pRect, Flags));
 }
 
-HRESULT DX9RENDER::LockRect(IDirect3DTexture9 *ppTexture, UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect,
+HRESULT DX9RENDER::LockRect(IDirect3DTexture9 *ppTexture, UINT Level, D3DLOCKED_RECT *pLockedRect, const RECT *pRect,
                             uint32_t Flags)
 {
     return CHECKD3DERR(ppTexture->LockRect(Level, pLockedRect, pRect, Flags));
@@ -3814,8 +3805,8 @@ HRESULT DX9RENDER::GetSurfaceLevel(IDirect3DTexture9 *ppTexture, UINT Level, IDi
     return CHECKD3DERR(ppTexture->GetSurfaceLevel(Level, ppSurfaceLevel));
 }
 
-HRESULT DX9RENDER::UpdateSurface(IDirect3DSurface9 *pSourceSurface, CONST RECT *pSourceRectsArray, UINT cRects,
-                                 IDirect3DSurface9 *pDestinationSurface, CONST POINT *pDestPointsArray)
+HRESULT DX9RENDER::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRectsArray, UINT cRects,
+                                 IDirect3DSurface9 *pDestinationSurface, const POINT *pDestPointsArray)
 {
     return CHECKD3DERR(D3DXLoadSurfaceFromSurface(pDestinationSurface, nullptr, nullptr, pSourceSurface, nullptr,
                                                   nullptr, D3DX_DEFAULT, 0));
@@ -3881,12 +3872,12 @@ HRESULT DX9RENDER::SetPixelShader(IDirect3DPixelShader9 *pShader)
     return CHECKD3DERR(d3d9->SetPixelShader(pShader));
 }
 
-HRESULT DX9RENDER::SetVertexShaderConstantF(UINT StartRegister, CONST float *pConstantData, UINT Vector4iCount)
+HRESULT DX9RENDER::SetVertexShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount)
 {
     return CHECKD3DERR(d3d9->SetVertexShaderConstantF(StartRegister, pConstantData, Vector4iCount));
 }
 
-HRESULT DX9RENDER::SetPixelShaderConstantF(UINT StartRegister, CONST float *pConstantData, UINT Vector4iCount)
+HRESULT DX9RENDER::SetPixelShaderConstantF(UINT StartRegister, const float *pConstantData, UINT Vector4iCount)
 {
     return CHECKD3DERR(d3d9->SetPixelShaderConstantF(StartRegister, pConstantData, Vector4iCount));
 }
