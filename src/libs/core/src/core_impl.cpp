@@ -353,7 +353,7 @@ void CoreImpl::SetTimeScale(float _scale)
 uint64_t CoreImpl::Send_Message(entid_t Destination, const char *Format, ...)
 {
     MESSAGE message;
-    auto *const ptr = core.GetEntityPointer(Destination); // check for valid destination
+    auto *const ptr = GetEntityPointerSafe(Destination); // check for valid destination
     if (!ptr)
         return 0;
 
@@ -439,7 +439,7 @@ VDATA *CoreImpl::Event(const std::string_view &event_name)
     return Compiler->ProcessEvent(event_name.data(), message);
 }
 
-VDATA *CoreImpl::Event(const std::string_view &event_name, MESSAGE& message)
+VDATA *CoreImpl::Event(const std::string_view &event_name, MESSAGE &message)
 {
     return Compiler->ProcessEvent(event_name.data(), message);
 }
@@ -505,8 +505,10 @@ void *CoreImpl::GetService(const char *service_name)
     const auto class_code = MakeHashValue(service_name);
     pClass->SetHash(class_code);
 
-    if (!service_PTR->Init())
+    if (!service_PTR->Init()) {
         CheckAutoExceptions(0);
+        return nullptr;
+    }
 
     Services_List.Add(class_code, class_code, service_PTR);
 
@@ -537,7 +539,7 @@ void CoreImpl::ProcessExecute()
     const auto &entIds = core.GetEntityIds(layer_type_t::execute);
     for (auto id : entIds)
     {
-        if (auto *ptr = core.GetEntityPointer(id))
+        if (auto *ptr = core.GetEntityPointerSafe(id))
         {
             ptr->ProcessStage(Entity::Stage::execute, deltatime);
         }
@@ -555,7 +557,7 @@ void CoreImpl::ProcessRealize()
     const auto &entIds = core.GetEntityIds(layer_type_t::realize);
     for (auto id : entIds)
     {
-        if (auto *ptr = core.GetEntityPointer(id))
+        if (auto *ptr = core.GetEntityPointerSafe(id))
         {
             ptr->ProcessStage(Entity::Stage::realize, deltatime);
         }
@@ -677,7 +679,7 @@ uint32_t CoreImpl::GetRDeltaTime()
 
 ATTRIBUTES *CoreImpl::Entity_GetAttributeClass(entid_t id_PTR, const char *name)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return nullptr;
     if (pE->AttributesPointer == nullptr)
@@ -687,7 +689,7 @@ ATTRIBUTES *CoreImpl::Entity_GetAttributeClass(entid_t id_PTR, const char *name)
 
 const char *CoreImpl::Entity_GetAttribute(entid_t id_PTR, const char *name)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return nullptr;
     if (pE->AttributesPointer == nullptr)
@@ -697,7 +699,7 @@ const char *CoreImpl::Entity_GetAttribute(entid_t id_PTR, const char *name)
 
 uint32_t CoreImpl::Entity_GetAttributeAsDword(entid_t id_PTR, const char *name, uint32_t def)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return def;
     if (pE->AttributesPointer == nullptr)
@@ -705,9 +707,9 @@ uint32_t CoreImpl::Entity_GetAttributeAsDword(entid_t id_PTR, const char *name, 
     return pE->AttributesPointer->GetAttributeAsDword(name, def);
 }
 
-FLOAT CoreImpl::Entity_GetAttributeAsFloat(entid_t id_PTR, const char *name, FLOAT def)
+float CoreImpl::Entity_GetAttributeAsFloat(entid_t id_PTR, const char *name, float def)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return def;
     if (pE->AttributesPointer == nullptr)
@@ -717,7 +719,7 @@ FLOAT CoreImpl::Entity_GetAttributeAsFloat(entid_t id_PTR, const char *name, FLO
 
 bool CoreImpl::Entity_SetAttribute(entid_t id_PTR, const char *name, const char *attribute)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return false;
     if (pE->AttributesPointer == nullptr)
@@ -727,7 +729,7 @@ bool CoreImpl::Entity_SetAttribute(entid_t id_PTR, const char *name, const char 
 
 bool CoreImpl::Entity_SetAttributeUseDword(entid_t id_PTR, const char *name, uint32_t val)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return false;
     if (pE->AttributesPointer == nullptr)
@@ -735,9 +737,9 @@ bool CoreImpl::Entity_SetAttributeUseDword(entid_t id_PTR, const char *name, uin
     return pE->AttributesPointer->SetAttributeUseDword(name, val);
 }
 
-bool CoreImpl::Entity_SetAttributeUseFloat(entid_t id_PTR, const char *name, FLOAT val)
+bool CoreImpl::Entity_SetAttributeUseFloat(entid_t id_PTR, const char *name, float val)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return false;
     if (pE->AttributesPointer == nullptr)
@@ -747,7 +749,7 @@ bool CoreImpl::Entity_SetAttributeUseFloat(entid_t id_PTR, const char *name, FLO
 
 void CoreImpl::Entity_SetAttributePointer(entid_t id_PTR, ATTRIBUTES *pA)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return;
     pE->AttributesPointer = pA;
@@ -755,7 +757,7 @@ void CoreImpl::Entity_SetAttributePointer(entid_t id_PTR, ATTRIBUTES *pA)
 
 uint32_t CoreImpl::Entity_AttributeChanged(entid_t id_PTR, ATTRIBUTES *pA)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return 0;
     return pE->AttributeChanged(pA);
@@ -763,7 +765,7 @@ uint32_t CoreImpl::Entity_AttributeChanged(entid_t id_PTR, ATTRIBUTES *pA)
 
 ATTRIBUTES *CoreImpl::Entity_GetAttributePointer(entid_t id_PTR)
 {
-    Entity *pE = core.GetEntityPointer(id_PTR);
+    Entity *pE = GetEntityPointer(id_PTR);
     if (pE == nullptr)
         return nullptr;
     return pE->AttributesPointer;
@@ -960,9 +962,19 @@ entptr_t CoreImpl::GetEntityPointer(entid_t id) const
     return entity_manager_.GetEntityPointer(id);
 }
 
+entptr_t CoreImpl::GetEntityPointerSafe(entid_t id) const
+{
+    return entity_manager_.IsEntityValid(id) ? GetEntityPointer(id) : nullptr;
+}
+
 entid_t CoreImpl::GetEntityId(const char *name) const
 {
     return entity_manager_.GetEntityId(name);
+}
+
+bool CoreImpl::IsEntityValid(entid_t id) const
+{
+    return entity_manager_.IsEntityValid(id);
 }
 
 entity_container_cref CoreImpl::GetEntityIds(layer_type_t type) const

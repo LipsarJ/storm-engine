@@ -39,6 +39,7 @@ WdmObjects::WdmObjects()
     islands = nullptr;
     playerShip = nullptr;
     isDebug = false;
+    showWindUI = true;
     Clear();
     enemyShip = nullptr;
     enableSkipEnemy = false;
@@ -95,6 +96,7 @@ void WdmObjects::Clear()
     enableSkipEnemy = false;
     playarInStorm = false;
     isNextDayUpdate = true;
+    forceUpdate = false;
     nationFlagIndex.reset();
     SetWorldSize(2000.0f, 2000.0f);
 }

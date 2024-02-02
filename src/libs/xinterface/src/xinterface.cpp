@@ -1063,27 +1063,16 @@ void XINTERFACE::LoadIni()
     // GUARD(XINTERFACE::LoadIni());
     char section[256];
 
-    auto platform = "PC_SCREEN";
     auto ini = fio->OpenIniFile(RESOURCE_FILENAME);
     if (!ini)
         throw std::runtime_error("ini file not found!");
 
-#ifdef _WIN32 // FIX_LINUX GetWindowRect
-    RECT Screen_Rect;
-    GetWindowRect(static_cast<HWND>(core.GetWindow()->OSHandle()), &Screen_Rect);
-#else
-    int sdlScreenWidth, sdlScreenHeight;
-    SDL_GetWindowSize(reinterpret_cast<SDL_Window *>(core.GetWindow()->OSHandle()), &sdlScreenWidth, &sdlScreenHeight);
-#endif
+    auto windowSize = core.GetWindow()->GetWindowSize();
 
     fScale = 1.0f;
     const auto screenSize = core.GetScreenSize();
     dwScreenHeight = screenSize.height;
-#ifdef _WIN32 // FIX_LINUX GetWindowRect
-    dwScreenWidth = (Screen_Rect.right - Screen_Rect.left) * dwScreenHeight / (Screen_Rect.bottom - Screen_Rect.top);
-#else
-    dwScreenWidth = sdlScreenWidth * dwScreenHeight / sdlScreenHeight;
-#endif
+    dwScreenWidth = windowSize.width * dwScreenHeight / windowSize.height;
     if (dwScreenWidth < screenSize.width)
         dwScreenWidth = screenSize.width;
     GlobalScreenRect.top = 0;
@@ -1091,6 +1080,32 @@ void XINTERFACE::LoadIni()
     GlobalScreenRect.left = (dwScreenWidth - screenSize.width) / 2;
     GlobalScreenRect.right = screenSize.width + GlobalScreenRect.left;
 
+    char platform[23];
+    bool sectionFound = false;
+    if (ini->GetSectionName(platform, sizeof(platform) - 1))
+    {
+        float windowRatio = (float)windowSize.width / (float)windowSize.height;
+        float iniRatio;
+        char splitPlatform[23], *platformW, *platformH;
+        do
+        {
+            if(starts_with(platform, "PC_SCREEN_"))
+            {
+                strcpy_s(splitPlatform, platform);
+                platformW = std::strtok(splitPlatform, "_:"); // PC
+                platformW = std::strtok(nullptr, "_:"); // SCREEN
+                platformW = std::strtok(nullptr, "_:"); // Width
+                platformH = std::strtok(nullptr, "_:"); // Height
+                iniRatio = (float)atoi(platformW) / (float)atoi(platformH);
+                // +- 3%
+                if (iniRatio*0.97  <= windowRatio && windowRatio <= iniRatio*1.03)
+                    sectionFound = true;
+            }
+        } while (!sectionFound && ini->GetSectionNameNext(platform, sizeof(platform) - 1));
+    }
+    if (!sectionFound)
+        strcpy_s(platform, "PC_SCREEN");
+    core.Trace("Using %s parameters", platform);
     sprintf_s(section, "COMMON");
 
     // set screen parameters
@@ -1140,13 +1155,7 @@ void XINTERFACE::LoadIni()
     sscanf(param, "%[^,],%d,size:(%d,%d),pos:(%d,%d)", param2, &m_lMouseSensitive, &MouseSize.x, &MouseSize.y,
            &m_lXMouse, &m_lYMouse);
     m_idTex = pRenderService->TextureCreate(param2);
-    //  RECT Screen_Rect;
-    //  GetWindowRect(core.GetAppHWND(), &Screen_Rect);
-#ifdef _WIN32 // FIX_LINUX Cursor
-    lock_x = Screen_Rect.left + (Screen_Rect.right - Screen_Rect.left) / 2;
-    lock_y = Screen_Rect.top + (Screen_Rect.bottom - Screen_Rect.top) / 2;
-    SetCursorPos(lock_x, lock_y);
-#endif
+    core.GetWindow()->WarpMouseInWindow(windowSize.width / 2, windowSize.height / 2);
     fXMousePos = static_cast<float>(dwScreenWidth / 2);
     fYMousePos = static_cast<float>(dwScreenHeight / 2);
     for (int i = 0; i < 4; i++)
@@ -2392,8 +2401,10 @@ void XINTERFACE::MouseClick(bool bFirstClick)
         return;
     }
     if (!m_bNotFirstPress)
+    {
+        m_nPressDelay = m_nMaxPressDelay;
         m_bNotFirstPress = true;
-    m_nPressDelay = m_nMaxPressDelay;
+    }
 
     if (bFirstClick && m_nMouseLastClickTimeCur > 0 && clickNod->CheckCommandUsed(ACTION_MOUSEDBLCLICK))
     {

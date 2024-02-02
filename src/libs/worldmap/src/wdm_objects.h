@@ -99,6 +99,7 @@ class WdmObjects
 
     bool isPause;
     bool isDebug;
+    bool showWindUI;
 
     void DrawCircle(const CVECTOR &pos, float radius, uint32_t color) const;
     void DrawCircle(CMatrix &mtx, float radius, uint32_t color) const;
@@ -130,6 +131,7 @@ class WdmObjects
     char attrMonth[256];  // Month at the current frame
     char attrYear[256];   // Year at the current frame
     bool isNextDayUpdate; // Time to update next day data
+    bool forceUpdate;     // Force to update data
 
     std::optional<int32_t> nationFlagIndex; // national flag index
 

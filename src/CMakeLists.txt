@@ -14,6 +14,10 @@ if(STORM_WATERMARK_FILE)
   add_definitions(-DSTORM_WATERMARK_FILE="${STORM_WATERMARK_FILE}")
 endif()
 
+if(STORM_ENABLE_SAFE_MODE)
+  add_definitions(-DSTORM_ENABLE_SAFE_MODE=1)
+endif()
+
 if (MSVC)
     # Ignore warnings about missing pdb
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ignore:4099")
@@ -46,9 +50,11 @@ else()
     add_compile_options(-v)
     add_link_options(-v)
 
-    # Always generate debug information
-    add_compile_options(-g)
-    add_link_options(-g)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g")
+
+    # Add _DEBUG flag
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
 endif()
 
 # this is crucial to include libs first

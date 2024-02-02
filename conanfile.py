@@ -11,12 +11,13 @@ class StormEngine(ConanFile):
         "output_directory": "ANY",
         "watermark_file": "ANY",
         "crash_reports": [True, False],
-        "steam": [True, False]
+        "steam": [True, False],
+        "conan_sdl": [True, False]
     }
 
     # dependencies used in deploy binaries
     # conan-center
-    requires = ["zlib/1.2.11", "spdlog/1.9.2", "fast_float/3.4.0", "sdl/2.0.18", "mimalloc/2.0.3", "sentry-native/0.5.0",
+    requires = ["zlib/1.2.13", "spdlog/1.9.2", "fast_float/3.4.0", "mimalloc/2.0.3", "sentry-native/0.6.5",
     # storm.jfrog.io
     "directx/9.0@storm/prebuilt", "fmod/2.02.05@storm/prebuilt"]
     # aux dependencies (e.g. for tests)
@@ -29,10 +30,13 @@ class StormEngine(ConanFile):
             self.requires("7zip/19.00")
         else:
             # conan-center
-            self.requires("libsafec/3.6.0")
             self.requires("openssl/1.1.1n")#fix for error: 'sentry-crashpad/0.4.13' requires 'openssl/1.1.1n' while 'pulseaudio/14.2' requires 'openssl/1.1.1q'
+            self.options["sdl"].nas = False #fix for https://github.com/conan-io/conan-center-index/issues/16606 - error: nas/1.9.4: Invalid ID: Recipe cannot be built with clang
+            self.options["libsndfile"].with_mpeg= False #fix for 0a12560440ac9f760670829a1cde44b787f587ad/src/src/libmpg123/mpg123lib_intern.h:346: undefined reference to `__pow_finite'
         if self.options.steam:
             self.requires("steamworks/1.5.1@storm/prebuilt")
+        if self.options.conan_sdl:
+            self.requires("sdl/2.0.18")
 
     generators = "cmake_multi"
 
@@ -59,11 +63,7 @@ class StormEngine(ConanFile):
             if self.options.steam:
                 self.__install_lib("steam_api64.dll")
 
-            self.__install_bin("mimalloc-redirect.dll")
-            if self.settings.build_type == "Debug":
-                self.__install_bin("mimalloc-debug.dll")
-            else:
-                self.__install_bin("mimalloc.dll")
+            self.__install_bin("mimalloc*.dll") # mimalloc, mimalloc-redirect, mimalloc-debug, etc.
 
         else: # not Windows
             if self.settings.build_type == "Debug":

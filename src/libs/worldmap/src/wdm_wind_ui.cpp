@@ -352,7 +352,10 @@ void WdmWindUI::SetAttributes(ATTRIBUTES *apnt)
 // Rendering
 void WdmWindUI::LRender(VDX9RENDER *rs)
 {
-    if (wdmObjects->isNextDayUpdate)
+    if (!wdmObjects->showWindUI)
+        return;
+
+    if ((wdmObjects->isNextDayUpdate) || (wdmObjects->forceUpdate))
     {
         auto *data = core.Event("WorldMap_GetMoral");
         if (data)

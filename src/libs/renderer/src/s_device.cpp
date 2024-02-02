@@ -1077,8 +1077,8 @@ void DX9RENDER::BlurGlowTexture()
 
 void DX9RENDER::CopyGlowToScreen()
 {
-    const FLOAT sx = static_cast<FLOAT>(screen_size.x);
-    const auto sy = static_cast<FLOAT>(screen_size.y);
+    const auto sx = static_cast<float>(screen_size.x);
+    const auto sy = static_cast<float>(screen_size.y);
     // Render to screen
     PostProcessQuad[0].vPos = Vector4(0, sy, 0.0f, 1.0f);
     PostProcessQuad[1].vPos = Vector4(0, 0, 0.0f, 1.0f);
@@ -1116,8 +1116,8 @@ void DX9RENDER::CopyGlowToScreen()
 
 void DX9RENDER::CopyPostProcessToScreen()
 {
-    const FLOAT sx = static_cast<FLOAT>(screen_size.x);
-    const auto sy = static_cast<FLOAT>(screen_size.y);
+    const auto sx = static_cast<float>(screen_size.x);
+    const auto sy = static_cast<float>(screen_size.y);
     PostProcessQuad[0].vPos = Vector4(0, sy, 0.0f, 1.0f);
     PostProcessQuad[1].vPos = Vector4(0, 0, 0.0f, 1.0f);
     PostProcessQuad[2].vPos = Vector4(sx, sy, 0.0f, 1.0f);
@@ -2104,7 +2104,7 @@ bool DX9RENDER::SetPerspective(float perspective, float fAspectRatio)
         fAspectRatio = static_cast<float>(screen_size.y) / screen_size.x;
     }
     aspectRatio = fAspectRatio;
-    const float fov_vert = perspective * fAspectRatio; // Vertical field of view  angle, in radians
+    const float fov_vert = 2.f * atanf(tanf(perspective / 2.f) * fAspectRatio); // Vertical field of view  angle, in radians
 
     const float w = 1.0f / tanf(fov_horiz * 0.5f);
     const float h = 1.0f / tanf(fov_vert * 0.5f);
@@ -2179,7 +2179,7 @@ bool DX9RENDER::GetLight(uint32_t dwIndex, D3DLIGHT9 *pLight)
 
 //################################################################################
 
-int32_t DX9RENDER::CreateVertexBuffer(int32_t type, size_t size, uint32_t dwUsage)
+int32_t DX9RENDER::CreateVertexBuffer(int32_t type, size_t size, uint32_t dwUsage, uint32_t dwPool)
 {
     if (size <= 0)
         return -1; // fix
@@ -2192,7 +2192,8 @@ int32_t DX9RENDER::CreateVertexBuffer(int32_t type, size_t size, uint32_t dwUsag
     if (b == MAX_BUFFERS)
         return -1;
 
-    if (CHECKD3DERR(d3d9->CreateVertexBuffer(size, dwUsage, type, D3DPOOL_DEFAULT, &VertexBuffers[b].buff, NULL)))
+    if (CHECKD3DERR(d3d9->CreateVertexBuffer(size, dwUsage, type, static_cast<D3DPOOL>(dwPool),
+                                             &VertexBuffers[b].buff, NULL)))
         return -1;
 
     VertexBuffers[b].type = type;

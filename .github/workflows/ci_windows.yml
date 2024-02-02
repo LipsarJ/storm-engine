@@ -19,44 +19,45 @@ jobs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
       - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v3.4.1
+        uses: fkirc/skip-duplicate-actions@v5
         with:
-          # skip concurrent jobs if they are on the same thing
           concurrent_skipping: 'same_content'
-          # never skip PR, release or manual/scheduled runs
           do_not_skip: '["pull_request", "release", "workflow_dispatch", "schedule"]'
 
   build-windows:
     needs: pre_job
     if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
-    runs-on: windows-2019
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        configuration: [msvc-debug, msvc-release]
-        enable_steam: [false]
-        include:
-          - enable_steam: true
-            configuration: msvc-release
-    name: 'windows [${{ matrix.configuration}}, steam: ${{ matrix.enable_steam }}]'
+        configuration: [debug, release]
+    name: 'Windows [${{ matrix.configuration }}]'
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: 'recursive'
     - uses: ilammy/msvc-dev-cmd@v1
     - name: Install Conan
-      run: pip install conan
-    - name: Configure with CMakeSettings.json and build
-      uses: lukka/run-cmake@v3
-      with:
-        cmakeListsOrSettingsJson: CMakeSettingsJson
-        cmakeSettingsJsonPath: '${{ github.workspace }}/CMakeSettings.json'
-        useVcpkgToolchainFile: false
-        buildDirectory: '${{ github.workspace }}/build'
-        configurationRegexFilter: '${{ matrix.configuration }}'
-        cmakeAppendedArgs: '-DSTORM_ENABLE_STEAM=${{ matrix.enable_steam }} -DSTORM_ENABLE_CRASH_REPORTS=ON'
+      run: pip install conan==1.60.0
+    - uses: lukka/get-cmake@latest
+    - name: Configure CMake w/ Conan
+      run: |
+        conan profile new default --detect
+        conan profile update conf.tools.system.package_manager:mode=install default
+        conan profile update conf.tools.system.package_manager:sudo=True default
+        cmake --preset=default
+    - name: Build
+      run: cmake --build --preset=${{ matrix.configuration }}
+#    - name: Configure and build
+#      uses: lukka/run-cmake@v10.2
+#      with:
+#        configurePreset: default
+#        buildPreset: '${{ matrix.configuration }}'
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
-        name: storm-engine.${{ matrix.configuration }}-steam-${{ matrix.enable_steam}}
-        path: build\${{ matrix.configuration }}\bin
+        name: storm-engine.${{ matrix.configuration }}
+        path: build/default/${{ matrix.configuration }}
+
+permissions: write-all

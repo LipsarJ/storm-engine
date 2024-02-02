@@ -70,10 +70,10 @@ class CoreImpl final : public CorePrivate
     ATTRIBUTES *Entity_GetAttributeClass(entid_t id_PTR, const char *name) override;
     const char *Entity_GetAttribute(entid_t id_PTR, const char *name) override;
     uint32_t Entity_GetAttributeAsDword(entid_t id_PTR, const char *name, uint32_t def = 0) override;
-    FLOAT Entity_GetAttributeAsFloat(entid_t id_PTR, const char *name, FLOAT def = 0) override;
+    float Entity_GetAttributeAsFloat(entid_t id_PTR, const char *name, float def = 0) override;
     bool Entity_SetAttribute(entid_t id_PTR, const char *name, const char *attribute) override;
     bool Entity_SetAttributeUseDword(entid_t id_PTR, const char *name, uint32_t val) override;
-    bool Entity_SetAttributeUseFloat(entid_t id_PTR, const char *name, FLOAT val) override;
+    bool Entity_SetAttributeUseFloat(entid_t id_PTR, const char *name, float val) override;
     void Entity_SetAttributePointer(entid_t id_PTR, ATTRIBUTES *pA) override;
     uint32_t Entity_AttributeChanged(entid_t id_PTR, ATTRIBUTES *) override;
     ATTRIBUTES *Entity_GetAttributePointer(entid_t id_PTR) override;
@@ -120,7 +120,9 @@ class CoreImpl final : public CorePrivate
     void EraseEntity(entid_t entity) override;
     entid_t CreateEntity(const char *name, ATTRIBUTES *attr) override;
     entptr_t GetEntityPointer(entid_t id) const override;
+    entptr_t GetEntityPointerSafe(entid_t id) const override;
     entid_t GetEntityId(const char *name) const override;
+    bool IsEntityValid(entid_t id) const override;
     entity_container_cref GetEntityIds(layer_type_t type) const override;
     entity_container_cref GetEntityIds(layer_index_t index) const override;
     entity_container_cref GetEntityIds(const char *name) const override;
